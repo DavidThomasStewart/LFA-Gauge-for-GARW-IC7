@@ -122,6 +122,17 @@ Item {
 
     ////////// TRANSAXLE GEAR VARIABLES //////////////////////////////////////
     property real gearpos: rpmtest.geardata
+    property string gearinfo:    if(gearpos===9)"P"
+                        else if(gearpos===10)"R"
+                        else if(gearpos===0)"N"
+                        else if(gearpos===1)"1"
+                        else if(gearpos===2)"2"
+                        else if(gearpos===3)"3"
+                        else if(gearpos===4)"4"
+                        else if(gearpos===5)"5"
+                        else if(gearpos===6)"6"
+                        else if(gearpos===7)"7"
+                        else "N"
 
     ////////// GAUGE DIGITS 0-10 POINT LOCATIONS /////////////////////////////
     property var digitList: [
@@ -543,7 +554,7 @@ Item {
             width: 15
             height: 33
             color: "#ffffff"
-            text: root.gearpos
+            text: root.gearinfo
             style: Text.Outline
             horizontalAlignment: Text.AlignHCenter
             font.family: gauge_font.name
@@ -676,7 +687,12 @@ Item {
 
         Rectangle {
             x: -135
-            y: 205 - ((root.watertempf - 31) * 0.70192)
+            y: if (root.watertempf > 240)
+                    60
+                else if (root.watertempf > 120)
+                    240 - ((root.watertempf-90)*1.2)
+                else
+                    240
             z: -50
             width: 86
             height: 205 - y
@@ -876,7 +892,12 @@ Item {
 
         Rectangle {
             x: 491
-            y: 205 - ((root.oiltempf - 31) * 0.70192)
+            y: if (root.oiltempf > 240)
+                    60
+                else if (root.oiltempf > 120)
+                    240 - ((root.oiltempf-90)*1.2)
+                else
+                    240
             z: -50
             width: 86
             height: 205 - y
@@ -992,7 +1013,7 @@ Item {
 
         Rectangle {
             x: 491
-            y: ((120 - root.oilpressure) * 1.44) + 255
+            y: ((100 - root.oilpressure) * 1.45) + 282
             z: -50
             width: 86
             height: 429 - y
@@ -1028,7 +1049,7 @@ Item {
             width: 15
             height: 33
             color: "#dfdfdf"
-            text: "120"
+            text: "100"
             style: Text.Outline
             horizontalAlignment: Text.AlignRight
             font.family: gauge_font.name
@@ -1046,7 +1067,7 @@ Item {
             width: 15
             height: 33
             color: "#dfdfdf"
-            text: "60"
+            text: "50"
             style: Text.Outline
             horizontalAlignment: Text.AlignRight
             font.family: gauge_font.name
