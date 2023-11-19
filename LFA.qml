@@ -122,17 +122,20 @@ Item {
 
     ////////// TRANSAXLE GEAR VARIABLES //////////////////////////////////////
     property real gearpos: rpmtest.geardata
-    property string gearinfo:    if(gearpos===9)"P"
-                        else if(gearpos===10)"R"
-                        else if(gearpos===0)"N"
-                        else if(gearpos===1)"1"
-                        else if(gearpos===2)"2"
-                        else if(gearpos===3)"3"
-                        else if(gearpos===4)"4"
-                        else if(gearpos===5)"5"
-                        else if(gearpos===6)"6"
-                        else if(gearpos===7)"7"
-                        else "N"
+    property string gearinfo: switch (gearpos) {
+        case 0: return "N";
+        case 1: return "1";
+        case 2: return "2";
+        case 3: return "3";
+        case 4: return "4";
+        case 5: return "5";
+        case 6: return "6";
+        case 7: return "7";
+        case 8: return "8";
+        case 9: return "P";
+        case 10: return "R";
+        default: return ""; // 100 is the value that says do not display gear position
+    }
 
     ////////// GAUGE DIGITS 0-10 POINT LOCATIONS /////////////////////////////
     property var digitList: [
