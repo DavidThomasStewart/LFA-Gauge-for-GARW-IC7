@@ -122,6 +122,20 @@ Item {
 
     ////////// TRANSAXLE GEAR VARIABLES //////////////////////////////////////
     property real gearpos: rpmtest.geardata
+    property string gearinfo: switch (gearpos) {
+        case 0: return "N";
+        case 1: return "1";
+        case 2: return "2";
+        case 3: return "3";
+        case 4: return "4";
+        case 5: return "5";
+        case 6: return "6";
+        case 7: return "7";
+        case 8: return "8";
+        case 9: return "P";
+        case 10: return "R";
+        default: return "-"; // 100 is the value that says do not display gear position
+    }
 
     ////////// GAUGE DIGITS 0-10 POINT LOCATIONS /////////////////////////////
     property var digitList: [
@@ -543,7 +557,7 @@ Item {
             width: 15
             height: 33
             color: "#ffffff"
-            text: root.gearpos
+            text: root.gearinfo
             style: Text.Outline
             horizontalAlignment: Text.AlignHCenter
             font.family: gauge_font.name
@@ -676,7 +690,12 @@ Item {
 
         Rectangle {
             x: -135
-            y: 205 - ((root.watertempf - 31) * 0.70192)
+            y: if (root.watertempf > 240)
+                    60
+                else if (root.watertempf > 120)
+                    240 - ((root.watertempf-90)*1.2)
+                else
+                    240
             z: -50
             width: 86
             height: 205 - y
@@ -876,7 +895,12 @@ Item {
 
         Rectangle {
             x: 491
-            y: 205 - ((root.oiltempf - 31) * 0.70192)
+            y: if (root.oiltempf > 240)
+                    60
+                else if (root.oiltempf > 120)
+                    240 - ((root.oiltempf-90)*1.2)
+                else
+                    240
             z: -50
             width: 86
             height: 205 - y
@@ -992,7 +1016,7 @@ Item {
 
         Rectangle {
             x: 491
-            y: ((120 - root.oilpressure) * 1.44) + 255
+            y: ((100 - root.oilpressure) * 1.45) + 282
             z: -50
             width: 86
             height: 429 - y
@@ -1028,7 +1052,7 @@ Item {
             width: 15
             height: 33
             color: "#dfdfdf"
-            text: "120"
+            text: "100"
             style: Text.Outline
             horizontalAlignment: Text.AlignRight
             font.family: gauge_font.name
@@ -1046,7 +1070,7 @@ Item {
             width: 15
             height: 33
             color: "#dfdfdf"
-            text: "60"
+            text: "50"
             style: Text.Outline
             horizontalAlignment: Text.AlignRight
             font.family: gauge_font.name
