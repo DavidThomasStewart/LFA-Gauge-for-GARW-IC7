@@ -134,7 +134,7 @@ Item {
         case 8: return "8";
         case 9: return "P";
         case 10: return "R";
-        default: return ""; // 100 is the value that says do not display gear position
+        default: return "-"; // 100 is the value that says do not display gear position
     }
 
     ////////// GAUGE DIGITS 0-10 POINT LOCATIONS /////////////////////////////
