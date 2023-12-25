@@ -695,7 +695,7 @@ Item {
 
         Rectangle {
             x: -135 + root.gaugeoffset
-            y: if (root.speedunits === 0) {
+            y: if (root.waterunits === 0) {
                     if (root.watertemp > 120)
                         60
                     else if (root.watertemp > 80)
@@ -729,7 +729,7 @@ Item {
             width: 15
             height: 33
             color: if (root.watertemp >= 100) "#ff0000"; else "#dfdfdf" // TODO: hardcoded
-            text: if (root.speedunits === 0)
+            text: if (root.waterunits === 0)
                         root.watertemp.toFixed(0) + " °C"
                     else
                         root.watertempf + " °F"
@@ -750,7 +750,7 @@ Item {
             width: 15
             height: 33
             color: "#dfdfdf"
-            text: if (root.speedunits === 0)
+            text: if (root.waterunits === 0)
                     "120"
                   else
                     "240"
@@ -771,7 +771,7 @@ Item {
             width: 15
             height: 33
             color: "#dfdfdf"
-            text: if (root.speedunits === 0)
+            text: if (root.waterunits === 0)
                     "100"
                   else
                     "180"
@@ -792,7 +792,7 @@ Item {
             width: 15
             height: 33
             color: "#dfdfdf"
-            text: if (root.speedunits === 0)
+            text: if (root.waterunits === 0)
                     "80"
                   else
                      "120"
@@ -924,7 +924,7 @@ Item {
 
         Rectangle {
             x: 491 - root.gaugeoffset
-            y: if (root.speedunits === 0) {
+            y: if (root.oiltempunits === 0) {
                     if (root.oiltemp > 120)
                         60
                     else if (root.oiltemp > 80)
@@ -958,7 +958,7 @@ Item {
             width: 15
             height: 33
             color: if (root.oiltemp >= 100) "#ff0000"; else "#dfdfdf" // TODO: hardcoded
-            text: if (root.speedunits === 0)
+            text: if (root.oiltempunits === 0)
                     root.oiltemp.toFixed(0) + " °C"
                   else
                     root.oiltempf + " °F"
@@ -979,7 +979,7 @@ Item {
             width: 15
             height: 33
             color: "#dfdfdf"
-            text: if (root.speedunits === 0)
+            text: if (root.oiltempunits === 0)
                     "120"
                   else
                      "240"
@@ -1000,7 +1000,7 @@ Item {
             width: 15
             height: 33
             color: "#dfdfdf"
-            text: if (root.speedunits === 0)
+            text: if (root.oiltempunits === 0)
                     "100"
                   else
                      "180"
@@ -1021,7 +1021,7 @@ Item {
             width: 15
             height: 33
             color: "#dfdfdf"
-            text: if (root.speedunits === 0)
+            text: if (root.oiltempunits === 0)
                     "80"
                   else
                      "120"
@@ -1068,7 +1068,7 @@ Item {
 
         Rectangle {
             x: 491 - root.gaugeoffset
-            y: if (root.speedunits === 0)
+            y: if (root.oilpressureunits === 0)
                     ((100 - root.oilpress) * 1.45) + 282
                 else {
                     if ((root.oilpress*14.504) > 125)
@@ -1094,7 +1094,7 @@ Item {
             width: 15
             height: 33
             color: if ((root.gaugeopen >= 150) && (root.oil || root.oilpress < 1) && (root.rpm > 900)) "#ff0000"; else "#dfdfdf"
-            text: if (root.speedunits === 0)
+            text: if (root.oilpressureunits === 0)
                     root.oilpress.toFixed(1) + " bar"
                   else
                     (root.oilpress*14.504).toFixed(0) + " psi"
@@ -1115,7 +1115,7 @@ Item {
             width: 15
             height: 33
             color: "#dfdfdf"
-            text: if (root.speedunits === 0)
+            text: if (root.oilpressureunits === 0)
                     "100"
                   else
                     "100"
@@ -1136,7 +1136,7 @@ Item {
             width: 15
             height: 33
             color: "#dfdfdf"
-            text: if (root.speedunits === 0)
+            text: if (root.oilpressureunits === 0)
                     "50"
                   else
                     "50"
@@ -1157,7 +1157,7 @@ Item {
             width: 15
             height: 33
             color: "#dfdfdf"
-            text: if (root.speedunits === 0)
+            text: if (root.oilpressureunits === 0)
                     "0"
                   else
                     "0"
