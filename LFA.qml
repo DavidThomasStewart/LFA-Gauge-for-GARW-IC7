@@ -815,7 +815,7 @@ Item {
             height: 33
             color: "#afafaf"
             text: if (root.speedunits === 0)
-                root.odometer/.62 + " KM"
+                (root.odometer).toFixed(0) + " KM"
                 else if(root.speedunits === 1)
                 root.odometer + " MI"
                 else
