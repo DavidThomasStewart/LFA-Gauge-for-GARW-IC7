@@ -695,7 +695,7 @@ Item {
 
         Rectangle {
             x: -135 + root.gaugeoffset
-            y: if (root.speedunits === 0) {
+            y: if (root.watertempunits === 0) {
                     if (root.watertemp > 120)
                         60
                     else if (root.watertemp > 80)
@@ -729,7 +729,7 @@ Item {
             width: 15
             height: 33
             color: if (root.watertemp >= 100) "#ff0000"; else "#dfdfdf" // TODO: hardcoded
-            text: if (root.speedunits === 0)
+            text: if (root.watertempunits === 0)
                         root.watertemp.toFixed(0) + " °C"
                     else
                         root.watertempf + " °F"
@@ -750,7 +750,7 @@ Item {
             width: 15
             height: 33
             color: "#dfdfdf"
-            text: if (root.speedunits === 0)
+            text: if (root.watertempunits === 0)
                     "120"
                   else
                     "240"
@@ -771,7 +771,7 @@ Item {
             width: 15
             height: 33
             color: "#dfdfdf"
-            text: if (root.speedunits === 0)
+            text: if (root.watertempunits === 0)
                     "100"
                   else
                     "180"
@@ -792,7 +792,7 @@ Item {
             width: 15
             height: 33
             color: "#dfdfdf"
-            text: if (root.speedunits === 0)
+            text: if (root.watertempunits === 0)
                     "80"
                   else
                      "120"
@@ -1062,17 +1062,24 @@ Item {
             width: 41
             height: 19
             source: "assets/oil_pressure_warning.png"
-            visible: root.gaugevisibility && (root.oil || (root.oilpress < 10 && root.rpm > 900))
+            visible: root.gaugevisibility && (root.oil || (root.oilpress < 1 && root.rpm > 900))
             opacity: root.gaugeopacity
         }
 
         Rectangle {
             x: 491 - root.gaugeoffset
-            y: ((100 - root.oilpress) * 1.45) + 282
+            y: if (root.speedunits === 0)
+                    ((100 - root.oilpress) * 1.45) + 282
+                else {
+                    if ((root.oilpress*14.504) > 125)
+                        282
+                    else
+                        ((100 - (root.oilpress*14.504)) * 1.45) + 282
+                }
             z: -50
             width: 86
             height: 429 - y
-            color: ((root.oilpress < 10) ? "#ff0000" : "#e3eef6")
+            color: ((root.oilpress < 1) ? "#ff0000" : "#e3eef6")
             radius: 0
             border.width: 0
             visible: root.gaugevisibility
@@ -1086,11 +1093,11 @@ Item {
             z: -11
             width: 15
             height: 33
-            color: if ((root.gaugeopen >= 150) && (root.oil || root.oilpress < 10) && (root.rpm > 900)) "#ff0000"; else "#dfdfdf"
+            color: if ((root.gaugeopen >= 150) && (root.oil || root.oilpress < 1) && (root.rpm > 900)) "#ff0000"; else "#dfdfdf"
             text: if (root.speedunits === 0)
                     root.oilpress.toFixed(1) + " bar"
                   else
-                    (root.oilpress).toFixed(0) + " psi"
+                    (root.oilpress*14.504).toFixed(0) + " psi"
             style: Text.Outline
             horizontalAlignment: Text.AlignHCenter
             font.family: gauge_font.name
@@ -1108,7 +1115,10 @@ Item {
             width: 15
             height: 33
             color: "#dfdfdf"
-            text: "100"
+            text: if (root.speedunits === 0)
+                    "100"
+                  else
+                    "100"
             style: Text.Outline
             horizontalAlignment: Text.AlignRight
             font.family: gauge_font.name
@@ -1126,7 +1136,10 @@ Item {
             width: 15
             height: 33
             color: "#dfdfdf"
-            text: "50"
+            text: if (root.speedunits === 0)
+                    "50"
+                  else
+                    "50"
             style: Text.Outline
             horizontalAlignment: Text.AlignRight
             font.family: gauge_font.name
@@ -1144,7 +1157,10 @@ Item {
             width: 15
             height: 33
             color: "#dfdfdf"
-            text: "0"
+            text: if (root.speedunits === 0)
+                    "0"
+                  else
+                    "0"
             style: Text.Outline
             horizontalAlignment: Text.AlignRight
             font.family: gauge_font.name
