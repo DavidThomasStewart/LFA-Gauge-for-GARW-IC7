@@ -66,65 +66,90 @@ Item {
     property real rpm: rpmtest.rpmdata
     onRpmChanged:  if (rpm < 500) blackcentre.scale = 1.4
 
-    property real rpmlimit: 7000
+    property real rpmlimit: 0
     onRpmlimitChanged: redline.requestPaint()
 
     property real shiftvalue: 0
     property real rpmdamping: 5
     property real rpmscaling: 0
 
+    property int rpmcalc: Math.round((((((watertempf - 32) + ((oiltempf - 118) * 2)) / 300) * 6700) + 2500) / 100, 0) * 100;
+
+    property int rpmredline: {
+        if (rpmlimit === 0){
+            if (rpmcalc > 8600)
+                8600
+            else if (rpmcalc < 2500)
+                2500
+            else
+                rpmcalc
+        }
+        else
+            rpmlimit
+    }
+    onRpmredlineChanged: redline.requestPaint()
+
+    property int rpmshiftvalue : (shiftvalue === 0) ? ((rpmredline < 8000) ? rpmredline + 50 : 8000) : shiftvalue;
+
     ////////// SPEED VARIABLES ///////////////////////////////////////////////
-    property real speed: rpmtest.speeddata
-    property int speedunits: 1 //TODO: Set to MI for now
-    property int mph: (speed * 0.62)
+    property real   speed: rpmtest.speeddata
+    property int    speedunits: 1 //TODO: Set to MI for now
+    property int    mph: (speed * 0.62)
 
     ////////// GAUGE SLIDER VARIABLES ////////////////////////////////////////
-    property int gaugeopen: 0
-    property int gaugeoffset: (150 - gaugeopen);
-    property bool gaugevisibility: (gaugeopen > 40)
-    property real gaugeopacity: (gaugeopen > 75) ? ((gaugeopen - 75) / 75) : 0
+    property int    gaugeopen: 0
+    property int    gaugeoffset: (150 - gaugeopen);
+    property bool   gaugevisibility: (gaugeopen > 40)
+    property real   gaugeopacity: (gaugeopen > 75) ? ((gaugeopen - 75) / 75) : 0
 
     ////////// COOLANT VARIABLES /////////////////////////////////////////////
-    property real watertemp: rpmtest.watertempdata
-    property real waterhigh: 0
-    property real waterlow: 0
-    property real waterunits: 0
-    property int watertempf: ((watertemp * 9/5)+32) * gaugeopacity
+    property real   watertemp: rpmtest.watertempdata
+    property real   waterhigh: 0
+    property real   waterlow: 0
+    property real   waterunits: 0
+    property int    watertempf: ((watertemp * 9/5)+32) * gaugeopacity
+    property bool   waterwarning : (waterhigh === 0 && watertempf > 212) || (waterhigh > 0 && watertempf >= waterhigh)
 
     ////////// FUEL VARIABLES ////////////////////////////////////////////////
-    property real fuel: rpmtest.fueldata;
-    property real fuelhigh: 0
-    property real fuellow: 10
-    property real fuelunits
-    property real fueldamping: 5
-    property real fuellevel : (fuel * gaugeopacity)
+    property real   fuel: rpmtest.fueldata;
+    property real   fuelhigh: 0
+    property real   fuellow: 0
+    property real   fuelunits
+    property real   fueldamping: 5
+    property real   fuellevel : (fuel * gaugeopacity)
+    property bool   fuelwarning : (fuellow === 0 && fuellevel < 20) || (fuellevel <= fuellow)
+    property real   rangecalc : (fuel * 225.0) / 100.0 // estimating 225 miles per tank right now
 
     ////////// OIL VARIABLES /////////////////////////////////////////////////
-    property real oiltemp: rpmtest.oiltempdata
-    property real oiltemphigh: 10
-    property real oiltemplow: 90
-    property real oiltempunits: 0
-    property int oiltempf: ((oiltemp * 9/5) + 32) * gaugeopacity
+    property real   oiltemp: rpmtest.oiltempdata
+    property real   oiltemphigh: 0
+    property real   oiltemplow: 0
+    property real   oiltempunits: 0
+    property int    oiltempf: ((oiltemp * 9 / 5) + 32) * gaugeopacity
+    property bool   oiltempwarning : (oiltemphigh === 0 && oiltempf > 225) || (oiltemphigh > 0 && oiltempf >= oiltemphigh)
 
-    property real oilpressure: rpmtest.oilpressuredata
-    property real oilpressurehigh: 0
-    property real oilpressurelow: 10
-    property real oilpressureunits: 0
-    property real oilpress : (oilpressure * gaugeopacity)
+    property real   oilpressure: rpmtest.oilpressuredata
+    property real   oilpressurehigh: 0
+    property real   oilpressurelow: 10
+    property real   oilpressureunits: 0
+    property real   oilpress : ((oilpressure - 0.13315579) * gaugeopacity)
+    property real   oilpresskpa : oilpress * 100
+    property real   oilpresspsi : oilpress * 6.894757
+    property bool   oilpresswarning : (root.oil || (root.rpm > 900 && ((oilpressurelow === 0 && root.oilpresspsi < 10) || (oilpressurelow > 0 && root.oilpress < oilpressurelow))))
 
     ////////// BATTERY VARIABLES /////////////////////////////////////////////
-    property real batteryvoltage: rpmtest.batteryvoltagedata
-    property real batterylow: 0
+    property real   batteryvoltage: rpmtest.batteryvoltagedata
+    property real   batterylow: 0
 
     ////////// AITFLOW VARIABLES /////////////////////////////////////////////
-    property real o2: rpmtest.o2data
-    property real afrlow: 0
-    property real afrhigh: 0
-    property real map: rpmtest.mapdata
-    property real maf: rpmtest.mafdata
+    property real   o2: rpmtest.o2data
+    property real   afrlow: 0
+    property real   afrhigh: 0
+    property real   map: rpmtest.mapdata
+    property real   maf: rpmtest.mafdata
 
     ////////// TRANSAXLE GEAR VARIABLES //////////////////////////////////////
-    property real gearpos: rpmtest.geardata
+    property real   gearpos: rpmtest.geardata
     property string gearinfo: switch (gearpos) {
         case 0: return "N";
         case 1: return "1";
@@ -294,7 +319,7 @@ Item {
             opacity:0.8
 
             property real angle: (root.settings2 * 40 * 0.03) // -13.85
-            property string colour: if (bezelred.visible) "red"; else if (bezelblue.visible) "blue"; else "white"
+            property string colour: (root.rpm >= root.rpmshiftvalue) ? "#ff0000" : "#cfcfcf"
 
             onPaint: {
                 var ctx = getContext("2d")
@@ -320,7 +345,7 @@ Item {
             smooth: true;
             opacity:1
 
-            property real angle: (root.rpmlimit*0.03)//-13.85
+            property real angle: (root.rpmredline*0.03)//-13.85
             property real lineend: if((root.settings&0x20)==0x20)280;else 299
 
             onPaint: {
@@ -507,12 +532,7 @@ Item {
             width: 150
             height: 50 
             color: "#ffffff"
-            text: if (root.speedunits === 0){
-                    root.speed.toFixed(0)
-                }
-                else{
-                    root.mph.toFixed(0)
-                }
+            text: (root.speedunits === 0) ? root.speed.toFixed(0) : root.mph.toFixed(0)
             style: Text.Outline
             horizontalAlignment: Text.AlignHCenter
             font.family: gauge_font.name
@@ -528,12 +548,7 @@ Item {
             width: 15
             height: 33
             color: "#cfcfcf"
-            text: if (root.speedunits === 0){
-                    "KPH"
-                }
-                else{
-                    "MPH"
-                }
+            text: (root.speedunits === 0) ? "KPH" : "MPH"
             style: Text.Outline
             horizontalAlignment: Text.AlignHCenter
             font.family: gauge_font.name
@@ -568,14 +583,14 @@ Item {
             font.family: gauge_font.name
             font.pixelSize: root.odopixelsize * 1.4
             font.bold: true
-            visible: (root.gearpos > 0) // TODO: When should it be displayed?
+            visible: (root.gearpos > 0)
         }
 
         ////////// TRIP DISPLAY //////////////////////////////////////////////
         Text {
             id: triplabel
-            x: 193
-            y: 285
+            x: 190
+            y: 282
             z: 50
             width: 15
             height: 33
@@ -590,18 +605,13 @@ Item {
 
         Text {
             id: trip
-            x: 240
-            y: 285
+            x: 230
+            y: 282
             z: 50
             width: 15
             height: 33
             color: "#cfcfcf"
-            text: if (root.speedunits === 0)
-                tripmeter/.62 + " km"
-                else if(root.speedunits === 1)
-                (tripmeter / 10).toFixed(1) + "  miles"
-                else
-                tripmeter
+            text: (root.speedunits === 0) ? ((tripmeter/10) * 1.609).toFixed(1) + " km" : (tripmeter / 10).toFixed(1) + "  miles"
             style: Text.Outline
             horizontalAlignment: Text.AlignLeft
             font.family: gauge_font.name
@@ -612,8 +622,8 @@ Item {
         ////////// RANGE DISPLAY /////////////////////////////////////////////
         Text {
             id: rangelabel
-            x: 193
-            y: 307
+            x: 190
+            y: 304
             z: 50
             width: 15
             height: 33
@@ -628,18 +638,13 @@ Item {
 
         Text {
             id: range
-            x: 240
-            y: 307
+            x: 230
+            y: 304
             z: 50
             width: 15
             height: 33
             color: "#cfcfcf"
-            text: if (root.speedunits === 0)
-                root.speed.toFixed(0) + " km"
-                else if(root.speedunits === 1)
-                (mph / 10).toFixed(1) + "  miles"
-                else
-                root.speed.toFixed(0) // TODO: Hardcoded to speed currently. Do a range calculaion, given odometer reading and fuel level over time...
+            text: (root.speedunits === 0) ? (root.rangecalc * 1.609).toFixed(1) + " km" : root.rangecalc.toFixed(1) + "  miles"
             style: Text.Outline
             horizontalAlignment: Text.AlignLeft
             font.family: gauge_font.name
@@ -689,32 +694,32 @@ Item {
             width: 33
             height: 24
             source: "assets/coolant_temp_warning.png"
-            visible: root.gaugevisibility && (root.watertemp >= 100)
+            visible: root.gaugevisibility && root.waterwarning
             opacity: root.gaugeopacity
         }
 
         Rectangle {
             x: -135 + root.gaugeoffset
-            y: if (root.waterunits === 0) {
+            y: if (root.waterunits !== 0) {
                     if (root.watertemp > 120)
-                        60
-                    else if (root.watertemp > 80)
-                        240 - ((root.watertemp-67)*3.33)
-                    else
+                        59
+                    else if (root.watertemp < 80)
                         240
+                    else
+                        240 - ((root.watertemp - 67) * 3.33)
                 }
                 else {
-                    if (root.watertempf > 240)
-                        60
-                    else if (root.watertempf > 120)
-                        240 - ((root.watertempf-90)*1.2)
-                    else
+                    if (root.watertempf >= 240)
+                        59
+                    else if (root.watertempf < 120)
                         240
+                    else
+                        240 - ((root.watertempf - 90) * 1.2)
                 }
             z: -50
             width: 86
             height: 205 - y
-            color: "#e3eef6"
+            color: (root.waterwarning) ? "#ff0000" : "#e3eef6"
             radius: 0
             border.width: 0
             visible: root.gaugevisibility
@@ -728,11 +733,8 @@ Item {
             z: -11
             width: 15
             height: 33
-            color: if (root.watertemp >= 100) "#ff0000"; else "#dfdfdf" // TODO: hardcoded
-            text: if (root.waterunits === 0)
-                        root.watertemp.toFixed(0) + " °C"
-                    else
-                        root.watertempf + " °F"
+            color: (root.waterwarning) ? "#ff0000" : "#e3eef6"
+            text: (root.waterunits !== 0) ? root.watertemp.toFixed(0) + " °C" : root.watertempf + " °F" 
             style: Text.Outline
             horizontalAlignment: Text.AlignHCenter
             font.family: gauge_font.name
@@ -750,10 +752,7 @@ Item {
             width: 15
             height: 33
             color: "#dfdfdf"
-            text: if (root.waterunits === 0)
-                    "120"
-                  else
-                    "240"
+            text: (root.waterunits !== 0) ? "120" : "240"
             style: Text.Outline
             horizontalAlignment: Text.AlignRight
             font.family: gauge_font.name
@@ -771,10 +770,7 @@ Item {
             width: 15
             height: 33
             color: "#dfdfdf"
-            text: if (root.waterunits === 0)
-                    "100"
-                  else
-                    "180"
+            text: (root.waterunits !== 0) ? "100" : "180"
             style: Text.Outline
             horizontalAlignment: Text.AlignRight
             font.family: gauge_font.name
@@ -792,10 +788,7 @@ Item {
             width: 15
             height: 33
             color: "#dfdfdf"
-            text: if (root.waterunits === 0)
-                    "80"
-                  else
-                     "120"
+            text: (root.waterunits !== 0) ? "80" : "120"
             style: Text.Outline
             horizontalAlignment: Text.AlignRight
             font.family: gauge_font.name
@@ -838,17 +831,17 @@ Item {
             width: 35
             height: 27
             source: "assets/fuel_level_warning.png"
-            visible: root.gaugevisibility && (root.fuellevel < 20)
+            visible: root.gaugevisibility && root.fuelwarning
             opacity: root.gaugeopacity
         }
 
         Rectangle {
             x: -135 + root.gaugeoffset
-            y: ((100 - root.fuellevel) * 1.45) + 282
+            y: ((100 - root.fuellevel) * 1.45) + 283
             z: -50
             width: 86
             height: 429 - y
-            color: ((root.fuellevel < root.fuellow) ? "#ff0000" : "#e3eef6")
+            color: (root.fuelwarning) ? "#ff0000" : "#e3eef6"
             radius: 0
             border.width: 0
             visible: root.gaugevisibility
@@ -862,7 +855,7 @@ Item {
             z: -11
             width: 15
             height: 33
-            color: if (root.fuellevel < 20) "#ff0000"; else "#dfdfdf"
+            color: (root.fuelwarning) ? "#ff0000" : "#dfdfdf"
             text: root.fuellevel.toFixed(0) + "%"
             style: Text.Outline
             horizontalAlignment: Text.AlignHCenter
@@ -918,32 +911,32 @@ Item {
             width: 40
             height: 28
             source: "assets/oil_temperature_warning.png"
-            visible: root.gaugevisibility && (root.oiltemp > 100)
+            visible: root.gaugevisibility && root.oiltempwarning
             opacity: root.gaugeopacity
         }
 
         Rectangle {
             x: 491 - root.gaugeoffset
-            y: if (root.oiltempunits === 0) {
-                    if (root.oiltemp > 120)
-                        60
-                    else if (root.oiltemp > 80)
-                        240 - ((root.oiltemp-67)*3.33)
+            y: if (root.oiltempunits !== 0) {
+                    if (root.oiltemp > 130)
+                        59
+                    else if (root.oiltemp < 50)
+                        205
                     else
-                        240            
-            }
-            else {
-                if (root.oiltempf > 240)
-                    60
-                else if (root.oiltempf > 120)
-                    240 - ((root.oiltempf-90)*1.2)
-                else
-                    240
-            }
+                        205 - ((root.oiltemp - 50) * 1.8125)
+                }
+                else {
+                    if (root.oiltempf >= 240)
+                        59
+                    else if (root.oiltempf < 120)
+                        240
+                    else
+                        240 - ((root.oiltempf - 90) * 1.2)
+                }
             z: -50
             width: 86
             height: 205 - y
-            color: "#e3eef6"
+            color: (root.oiltempwarning) ? "#ff0000" : "#e3eef6"
             radius: 0
             border.width: 0
             visible: root.gaugevisibility
@@ -957,11 +950,8 @@ Item {
             z: -11
             width: 15
             height: 33
-            color: if (root.oiltemp >= 100) "#ff0000"; else "#dfdfdf" // TODO: hardcoded
-            text: if (root.oiltempunits === 0)
-                    root.oiltemp.toFixed(0) + " °C"
-                  else
-                    root.oiltempf + " °F"
+            color: (root.oiltempwarning) ? "#ff0000" : "#e3eef6"
+            text: (root.oiltempunits !== 0) ? root.oiltemp.toFixed(0) + " °C" : root.oiltempf + " °F"
             style: Text.Outline
             horizontalAlignment: Text.AlignHCenter
             font.family: gauge_font.name
@@ -979,10 +969,7 @@ Item {
             width: 15
             height: 33
             color: "#dfdfdf"
-            text: if (root.oiltempunits === 0)
-                    "120"
-                  else
-                     "240"
+            text: (root.oiltempunits !== 0) ? "130" : "240"
             style: Text.Outline
             horizontalAlignment: Text.AlignRight
             font.family: gauge_font.name
@@ -1000,10 +987,7 @@ Item {
             width: 15
             height: 33
             color: "#dfdfdf"
-            text: if (root.oiltempunits === 0)
-                    "100"
-                  else
-                     "180"
+            text: (root.oiltempunits !== 0) ? "90" : "180"
             style: Text.Outline
             horizontalAlignment: Text.AlignRight
             font.family: gauge_font.name
@@ -1021,10 +1005,7 @@ Item {
             width: 15
             height: 33
             color: "#dfdfdf"
-            text: if (root.oiltempunits === 0)
-                    "80"
-                  else
-                     "120"
+            text: (root.oiltempunits !== 0) ? "50" : "120"
             style: Text.Outline
             horizontalAlignment: Text.AlignRight
             font.family: gauge_font.name
@@ -1062,24 +1043,32 @@ Item {
             width: 41
             height: 19
             source: "assets/oil_pressure_warning.png"
-            visible: root.gaugevisibility && (root.oil || (root.oilpress < 1 && root.rpm > 900))
+            visible: root.gaugevisibility && root.oilpresswarning
             opacity: root.gaugeopacity
         }
 
         Rectangle {
             x: 491 - root.gaugeoffset
-            y: if (root.oilpressureunits === 0)
-                    ((100 - root.oilpress) * 1.45) + 282
-                else {
-                    if ((root.oilpress*14.504) > 125)
-                        282
+            y: if (root.oilpressureunits !== 0) {
+                    if (root.oilpresskpa > 800)
+                        283
+                    else if (root.oilpresskpa < 0)
+                        429
                     else
-                        ((100 - (root.oilpress*14.504)) * 1.45) + 282
+                        ((800 - root.oilpresskpa) / 5.517241) + 283
+                }
+                else {
+                    if (root.oilpresspsi > 100)
+                        283
+                    else if (root.oilpresspsi < 0)
+                        429
+                    else
+                        ((100 - root.oilpresspsi) * 1.47) + 283
                 }
             z: -50
             width: 86
             height: 429 - y
-            color: ((root.oilpress < 1) ? "#ff0000" : "#e3eef6")
+            color: (root.oilpresswarning) ? "#ff0000" : "#e3eef6"
             radius: 0
             border.width: 0
             visible: root.gaugevisibility
@@ -1088,16 +1077,13 @@ Item {
 
         Text {
             id: oil_pressure
-            x: 473 - root.gaugeoffset
+            x: 475 - root.gaugeoffset
             y: 332
             z: -11
             width: 15
             height: 33
-            color: if ((root.gaugeopen >= 150) && (root.oil || root.oilpress < 1) && (root.rpm > 900)) "#ff0000"; else "#dfdfdf"
-            text: if (root.oilpressureunits === 0)
-                    root.oilpress.toFixed(1) + " bar"
-                  else
-                    (root.oilpress*14.504).toFixed(0) + " psi"
+            color: (root.gaugeopen >= 150 && root.oilpresswarning) ? "#ff0000" : "#dfdfdf"
+            text: (root.oilpressureunits !== 0) ? root.oilpresskpa.toFixed(0) + " kPa" : root.oilpresspsi.toFixed(0) + " psi"
             style: Text.Outline
             horizontalAlignment: Text.AlignHCenter
             font.family: gauge_font.name
@@ -1115,10 +1101,7 @@ Item {
             width: 15
             height: 33
             color: "#dfdfdf"
-            text: if (root.oilpressureunits === 0)
-                    "100"
-                  else
-                    "100"
+            text: (root.oilpressureunits !== 0) ? "800" : "100"
             style: Text.Outline
             horizontalAlignment: Text.AlignRight
             font.family: gauge_font.name
@@ -1136,10 +1119,7 @@ Item {
             width: 15
             height: 33
             color: "#dfdfdf"
-            text: if (root.oilpressureunits === 0)
-                    "50"
-                  else
-                    "50"
+            text: (root.oilpressureunits !== 0) ? "400" : "50"
             style: Text.Outline
             horizontalAlignment: Text.AlignRight
             font.family: gauge_font.name
@@ -1157,10 +1137,7 @@ Item {
             width: 15
             height: 33
             color: "#dfdfdf"
-            text: if (root.oilpressureunits === 0)
-                    "0"
-                  else
-                    "0"
+            text: "0"
             style: Text.Outline
             horizontalAlignment: Text.AlignRight
             font.family: gauge_font.name
@@ -1178,26 +1155,6 @@ Item {
             z: -4
             smooth: true
             source: "assets/bezel_gray_0_0_.png"
-        }
-
-        Image {
-            id: bezelblue
-            x: 0
-            y: 0
-            z: -3
-            smooth: true
-            source: "assets/bezel_blue_0_0_.png";
-            visible: if((root.symbols&0x08) == 0x08)true;else false
-        }
-
-        Image {
-            id: bezelred
-            x: 0
-            y: 0
-            z: -2
-            smooth: true
-            source:"assets/bezel_red_0_0_.png";
-            visible: if(root.rpm>(root.settings2*40))true;else false
         }
 
         Image {
