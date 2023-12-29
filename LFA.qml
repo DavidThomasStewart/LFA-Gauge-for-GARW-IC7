@@ -58,9 +58,12 @@ Item {
     property bool right_joy     :inputs&0x40000000 || root.udp_right
 
     ////////// ODOMETER VARIABLES (NON-VOLATILE STORAGE) /////////////////////
-    property int odometer: rpmtest.odometer0data/10*0.62 //TODO Hardcoded to mi, need to consider km
-    property int tripmeter: rpmtest.tripmileage0data*0.62 //TODO Hardcoded to mi, need to consider km
+    property int odometer: rpmtest.odometer0data
+    property int tripmeter: rpmtest.tripmileage0data
     property real odopixelsize: 36
+
+    property real odometervalue : (root.speedunits === 0) ? (odometer / 10) : ((odometer / 10) / 1.609)
+    property real tripmetervalue : (root.speedunits === 0) ? (tripmeter / 10) : ((tripmeter / 10) / 1.609)
 
     ////////// RPM VARIABLES /////////////////////////////////////////////////
     property real rpm: rpmtest.rpmdata
@@ -93,15 +96,15 @@ Item {
 
     ////////// SPEED VARIABLES ///////////////////////////////////////////////
     property real   speed: rpmtest.speeddata
-    property int    speedunits: 1 //TODO: Set to MI for now
-    property int    mph: (speed * 0.62)
+    property int    speedunits: 1
+    property int    speedvalue : (root.speedunits === 0) ? speed : (speed / 1.609)
 
     ////////// GAUGE SLIDER VARIABLES ////////////////////////////////////////
     property int    gaugemax: 168   // 135-182 is valid range
     property int    gaugeopen: 0
     property int    gaugeoffset: (gaugemax - gaugeopen);
     property bool   gaugevisibility: (gaugeopen > 40)
-    property real   gaugeopacity: (gaugeopen > (gaugemax/2)) ? ((gaugeopen - (gaugemax/2)) / (gaugemax/2)) : 0
+    property real   gaugeopacity: (gaugeopen > (gaugemax / 2)) ? ((gaugeopen - (gaugemax / 2)) / (gaugemax / 2)) : 0
 
     ////////// COOLANT VARIABLES /////////////////////////////////////////////
     property real   watertemp: rpmtest.watertempdata
@@ -113,13 +116,18 @@ Item {
 
     ////////// FUEL VARIABLES ////////////////////////////////////////////////
     property real   fuel: rpmtest.fueldata;
-    property real   fuelhigh: 0
+    property real   fuelhigh: 0 // if fuelhigh = 0 then icons will be displayed
     property real   fuellow: 0
     property real   fuelunits
     property real   fueldamping: 5
     property real   fuellevel : (fuel * gaugeopacity)
     property bool   fuelwarning : (fuellow === 0 && fuellevel < 20) || (fuellevel <= fuellow)
-    property real   rangecalc : (fuel * 225.0) / 100.0 // estimating 225 miles per tank right now
+
+                    // car stalls out at 7% fuel which is 0 range
+    property real   rangefuel : (fuellevel > 6) ? ((fuellevel - 6) / 100) : 0 
+
+                    // range calculation assumes (240 miles) with FULL tank and (165 miles) remaining when fuel drops below 100% fuel indicated
+    property real   rangecalc : (fuellevel >= 100) ? (240 - ((tripmeter / 10) / 1.609)) : (rangefuel * 165)
 
     ////////// OIL VARIABLES /////////////////////////////////////////////////
     property real   oiltemp: rpmtest.oiltempdata
@@ -136,7 +144,7 @@ Item {
     property real   oilpress : (oilpressure > 0) ? oilpressure * gaugeopacity : 0
     property real   oilpresskpa : oilpress * 100
     property real   oilpresspsi : oilpress * 14.503
-    property bool   oilpresswarning : (root.oil || (root.rpm > 900 && ((oilpressurelow === 0 && root.oilpresspsi < 10) || (oilpressurelow > 0 && root.oilpress < oilpressurelow))))
+    property bool   oilpresswarning : (root.oil || (root.rpm >= 850 && ((oilpressurelow === 0 && root.oilpresspsi < 20) || (oilpressurelow > 0 && root.oilpress < oilpressurelow))))
 
     ////////// BATTERY VARIABLES /////////////////////////////////////////////
     property real   batteryvoltage: rpmtest.batteryvoltagedata
@@ -163,7 +171,8 @@ Item {
         case 8: return "8";
         case 9: return "P";
         case 10: return "R";
-        default: return "-"; // 100 is the value that says do not display gear position
+        default: return "-"; // this will be neutral (not calculated)
+        // 100 is the value that says do not display gear position
     }
 
     ////////// GAUGE DIGITS 0-10 POINT LOCATIONS /////////////////////////////
@@ -428,7 +437,7 @@ Item {
             fillMode: Image.PreserveAspectCrop
             rotation: 0
             source: "assets/seatbelt_warning.png"
-            visible: root.seatbelt
+            visible: root.seatbelt && (root.fuelhigh === 0)
         }
 
         Image {
@@ -441,7 +450,7 @@ Item {
             fillMode: Image.PreserveAspectCrop
             rotation: 0
             source: "assets/door_open.png"
-            visible: root.doorswitch
+            visible: root.doorswitch && (root.fuelhigh === 0)
         }
 
         Image {
@@ -454,7 +463,7 @@ Item {
             fillMode: Image.PreserveAspectCrop
             rotation: 0
             source: "assets/brake_warning.png"
-            visible: root.brake|root.handbrake 
+            visible: (root.brake | root.handbrake)  && (root.fuelhigh === 0)
         }
 
         ////////// LOWER RIGHT WARNING INDICATORS /////////////////////////////
@@ -468,7 +477,7 @@ Item {
             fillMode: Image.PreserveAspectCrop
             rotation: 0
             source: "assets/airbag_warning.png"
-            visible: root.airbag
+            visible: root.airbag && (root.fuelhigh === 0)
         }
 
         Image {
@@ -481,7 +490,7 @@ Item {
             fillMode: Image.PreserveAspectCrop
             rotation: 0
             source: "assets/battery_warning.png"
-            visible: root.battery
+            visible: root.battery && (root.fuelhigh === 0)
         }
 
         Image {
@@ -494,7 +503,7 @@ Item {
             fillMode: Image.PreserveAspectCrop
             rotation: 0
             source: "assets/abs_warning.png"
-            visible: root.abs
+            visible: root.abs && (root.fuelhigh === 0)
         }
 
         ////////// INSIDE GAUGE INDICATORS /////////////////////////////
@@ -508,7 +517,7 @@ Item {
             fillMode: Image.PreserveAspectCrop
             rotation: 0
             source: "assets/high_beam.png"
-            visible: root.mainbeam
+            visible: root.mainbeam && (root.fuelhigh === 0)
         }
 
         Image {
@@ -521,7 +530,7 @@ Item {
             fillMode: Image.PreserveAspectCrop
             rotation: 0
             source: "assets/mil_warning.png"
-            visible: root.mil
+            visible: root.mil && (root.fuelhigh === 0)
         }
 
         ////////// SPEED GAUGE ///////////////////////////////////////////////
@@ -533,7 +542,7 @@ Item {
             width: 150
             height: 50 
             color: "#ffffff"
-            text: (root.speedunits === 0) ? root.speed.toFixed(0) : root.mph.toFixed(0)
+            text: speedvalue.toFixed(0)
             style: Text.Outline
             horizontalAlignment: Text.AlignHCenter
             font.family: gauge_font.name
@@ -591,7 +600,7 @@ Item {
         Text {
             id: triplabel
             x: 188
-            y: 282
+            y: 280
             z: 50
             width: 15
             height: 33
@@ -607,12 +616,12 @@ Item {
         Text {
             id: trip
             x: 290
-            y: 282
+            y: 280
             z: 50
             width: 15
             height: 33
             color: "#cfcfcf"
-            text: (root.speedunits === 0) ? ((tripmeter/10) * 1.609).toFixed(1) + " km" : (tripmeter / 10).toFixed(1) + " miles"
+            text: root.tripmetervalue.toFixed(1) + ((root.speedunits === 0) ? " km" : " miles")
             style: Text.Outline
             horizontalAlignment: Text.AlignRight
             font.family: gauge_font.name
@@ -624,7 +633,7 @@ Item {
         Text {
             id: rangelabel
             x: 188
-            y: 304
+            y: 302
             z: 50
             width: 15
             height: 33
@@ -640,11 +649,11 @@ Item {
         Text {
             id: range
             x: 290
-            y: 304
+            y: 302
             z: 50
             width: 15
             height: 33
-            color: "#cfcfcf"
+            color: (root.fuelwarning) ? ((root.rangecalc < 1) ? "#ff0000" : "#ffcf00") : "#cfcfcf"
             text: (root.speedunits === 0) ? (root.rangecalc * 1.609).toFixed(1) + " km" : root.rangecalc.toFixed(1) + " miles"
             style: Text.Outline
             horizontalAlignment: Text.AlignRight
@@ -720,7 +729,7 @@ Item {
             z: -50
             width: 86
             height: 205 - y
-            color: (root.waterwarning) ? "#ff0000" : "#e3eef6"
+            color: (root.waterwarning) ? "#ff0000" : ((root.watertempf < 180) ? "#00ffff" : "#e3eef6")
             radius: 0
             border.width: 0
             visible: root.gaugevisibility
@@ -808,12 +817,7 @@ Item {
             width: 15
             height: 33
             color: "#afafaf"
-            text: if (root.speedunits === 0)
-                (root.odometer).toFixed(0) + " KM"
-                else if(root.speedunits === 1)
-                root.odometer + " MI"
-                else
-                root.odometer
+            text: root.odometervalue.toFixed(0) + ((root.speedunits === 0) ? " KM" : " MI")
             style: Text.Outline
             horizontalAlignment: Text.AlignLeft
             font.family: gauge_font.name
@@ -937,7 +941,7 @@ Item {
             z: -50
             width: 86
             height: 205 - y
-            color: (root.oiltempwarning) ? "#ff0000" : "#e3eef6"
+            color: (root.oiltempwarning) ? "#ff0000" : ((root.oiltempf < 180) ? "#00ffff" : "#e3eef6")
             radius: 0
             border.width: 0
             visible: root.gaugevisibility
