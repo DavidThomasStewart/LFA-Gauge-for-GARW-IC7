@@ -97,10 +97,11 @@ Item {
     property int    mph: (speed * 0.62)
 
     ////////// GAUGE SLIDER VARIABLES ////////////////////////////////////////
+    property int    gaugemax: 168   // 135-182 is valid range
     property int    gaugeopen: 0
-    property int    gaugeoffset: (150 - gaugeopen);
+    property int    gaugeoffset: (gaugemax - gaugeopen);
     property bool   gaugevisibility: (gaugeopen > 40)
-    property real   gaugeopacity: (gaugeopen > 75) ? ((gaugeopen - 75) / 75) : 0
+    property real   gaugeopacity: (gaugeopen > (gaugemax/2)) ? ((gaugeopen - (gaugemax/2)) / (gaugemax/2)) : 0
 
     ////////// COOLANT VARIABLES /////////////////////////////////////////////
     property real   watertemp: rpmtest.watertempdata
@@ -132,9 +133,9 @@ Item {
     property real   oilpressurehigh: 0
     property real   oilpressurelow: 10
     property real   oilpressureunits: 0
-    property real   oilpress : ((oilpressure - 0.13315579) * gaugeopacity)
+    property real   oilpress : (oilpressure > 0) ? oilpressure * gaugeopacity : 0
     property real   oilpresskpa : oilpress * 100
-    property real   oilpresspsi : oilpress * 6.894757
+    property real   oilpresspsi : oilpress * 14.503
     property bool   oilpresswarning : (root.oil || (root.rpm > 900 && ((oilpressurelow === 0 && root.oilpresspsi < 10) || (oilpressurelow > 0 && root.oilpress < oilpressurelow))))
 
     ////////// BATTERY VARIABLES /////////////////////////////////////////////
@@ -191,15 +192,15 @@ Item {
         // OPEN GAUGES ON IGNITION START
         Timer{
             id: gaugeopen_timer
-            interval: 20
+            interval: 30
             repeat: true
 
-            running: if (root.gaugeopen >=0 && root.gaugeopen < 150) true;
+            running: if (root.gaugeopen >=0 && root.gaugeopen < root.gaugemax) true;
                 else false
 
             onTriggered: if (root.ignition) {
                 gaugeclose_timer.stop();
-                root.gaugeopen += 2;
+                root.gaugeopen += 3;
             }
         }
 
@@ -207,14 +208,14 @@ Item {
         // TODO: When ignition is turned back after this is closed the gauges are already fully open. Why?
         Timer{
             id: gaugeclose_timer
-            interval: 20
+            interval: 30
             repeat: true
 
             running: if (root.gaugeopen >= 0) true;
                 else false
 
             onTriggered: if (!root.ignition && root.gaugeopen >= 0) {
-                root.gaugeopen = (root.gaugeopen > 0) ? root.gaugeopen - 2 : 0;
+                root.gaugeopen = (root.gaugeopen > 0) ? root.gaugeopen - 3 : 0;
                 if (root.rpm > 0)
                     root.rpm = 0;
                 // TODO: Do we want to do a slow opacity fade of the center gauge here?
@@ -248,7 +249,7 @@ Item {
                 interval: 50
                 repeat: true
 
-                running: if (parent.height < 150 && root.rpm > 100) true;
+                running: if (parent.height < root.gaugemax && root.rpm > 100) true;
                     else false
 
                 onTriggered: if (root.rpm > 100) {
@@ -397,7 +398,7 @@ Item {
         Image {
             id: left_indicator
             x: -172
-            y: 40
+            y: 35
             z: 40
             width: 42
             height: 44
@@ -408,7 +409,7 @@ Item {
         Image {
             id: right_indicator
             x: 572
-            y: 40
+            y: 35
             z: 40
             width: 42
             height: 44
@@ -589,7 +590,7 @@ Item {
         ////////// TRIP DISPLAY //////////////////////////////////////////////
         Text {
             id: triplabel
-            x: 190
+            x: 188
             y: 282
             z: 50
             width: 15
@@ -605,15 +606,15 @@ Item {
 
         Text {
             id: trip
-            x: 230
+            x: 290
             y: 282
             z: 50
             width: 15
             height: 33
             color: "#cfcfcf"
-            text: (root.speedunits === 0) ? ((tripmeter/10) * 1.609).toFixed(1) + " km" : (tripmeter / 10).toFixed(1) + "  miles"
+            text: (root.speedunits === 0) ? ((tripmeter/10) * 1.609).toFixed(1) + " km" : (tripmeter / 10).toFixed(1) + " miles"
             style: Text.Outline
-            horizontalAlignment: Text.AlignLeft
+            horizontalAlignment: Text.AlignRight
             font.family: gauge_font.name
             font.pixelSize: root.odopixelsize / 2
             font.bold: false
@@ -622,7 +623,7 @@ Item {
         ////////// RANGE DISPLAY /////////////////////////////////////////////
         Text {
             id: rangelabel
-            x: 190
+            x: 188
             y: 304
             z: 50
             width: 15
@@ -638,15 +639,15 @@ Item {
 
         Text {
             id: range
-            x: 230
+            x: 290
             y: 304
             z: 50
             width: 15
             height: 33
             color: "#cfcfcf"
-            text: (root.speedunits === 0) ? (root.rangecalc * 1.609).toFixed(1) + " km" : root.rangecalc.toFixed(1) + "  miles"
+            text: (root.speedunits === 0) ? (root.rangecalc * 1.609).toFixed(1) + " km" : root.rangecalc.toFixed(1) + " miles"
             style: Text.Outline
-            horizontalAlignment: Text.AlignLeft
+            horizontalAlignment: Text.AlignRight
             font.family: gauge_font.name
             font.pixelSize: root.odopixelsize / 2
             font.bold: false
@@ -688,7 +689,7 @@ Item {
         ////////// COOLANT INDICATORS ////////////////////////////////////////
         Image {
             id: coolant_temp_warning
-            x: -55 + root.gaugeoffset
+            x: (95 - root.gaugemax) + root.gaugeoffset
             y: 147
             z: -11
             width: 33
@@ -699,7 +700,7 @@ Item {
         }
 
         Rectangle {
-            x: -135 + root.gaugeoffset
+            x: (15 - root.gaugemax) + root.gaugeoffset
             y: if (root.waterunits !== 0) {
                     if (root.watertemp > 120)
                         59
@@ -728,7 +729,7 @@ Item {
 
         Text {
             id: coolant_temp
-            x: -45 + root.gaugeoffset
+            x: (105 - root.gaugemax) + root.gaugeoffset
             y: 172
             z: -11
             width: 15
@@ -746,7 +747,7 @@ Item {
 
         Text {
             id: coolant_temp_upper_label
-            x: -30 + root.gaugeoffset
+            x: (120 - root.gaugemax) + root.gaugeoffset
             y: 49
             z: 60
             width: 15
@@ -764,7 +765,7 @@ Item {
 
         Text {
             id: coolant_temp_middle_label
-            x: -80 + root.gaugeoffset
+            x: (70 - root.gaugemax) + root.gaugeoffset
             y: 121
             z: 60
             width: 15
@@ -782,7 +783,7 @@ Item {
 
         Text {
             id: coolant_temp_lower_label
-            x: -107 + root.gaugeoffset
+            x: (43 - root.gaugemax) + root.gaugeoffset
             y: 196
             z: 60
             width: 15
@@ -801,7 +802,7 @@ Item {
         ////////// ODOMETER INDICATOR ////////////////////////////////////////
         Text {
             id: odometer_display
-            x: -144 + root.gaugeoffset
+            x: (6 - root.gaugemax) + root.gaugeoffset
             y: 229 
             z: 60
             width: 15
@@ -825,7 +826,7 @@ Item {
         ////////// FUEL INDICATOR ////////////////////////////////////////////
         Image {
             id: fuel_level_warning
-            x: -60 + root.gaugeoffset
+            x: (90 - root.gaugemax) + root.gaugeoffset
             y: 306
             z: -11
             width: 35
@@ -836,7 +837,7 @@ Item {
         }
 
         Rectangle {
-            x: -135 + root.gaugeoffset
+            x: (15 - root.gaugemax) + root.gaugeoffset
             y: ((100 - root.fuellevel) * 1.45) + 283
             z: -50
             width: 86
@@ -850,7 +851,7 @@ Item {
 
         Text {
             id: fuel_level
-            x: -48 + root.gaugeoffset
+            x: (104 - root.gaugemax) + root.gaugeoffset
             y: 332
             z: -11
             width: 15
@@ -868,7 +869,7 @@ Item {
 
         Text {
             id: fuel_level_full_label
-            x: -112 + root.gaugeoffset
+            x: (38 - root.gaugemax) + root.gaugeoffset
             y: 272
             z: 60
             width: 15
@@ -886,7 +887,7 @@ Item {
 
         Text {
             id: fuel_level_empty_label
-            x: -35 + root.gaugeoffset
+            x: (115 - root.gaugemax) + root.gaugeoffset
             y: 417
             z: 60
             width: 15
@@ -905,7 +906,7 @@ Item {
         ////////// OIL TEMPERATURE INDICATOR /////////////////////////////////
         Image {
             id: oil_temperature_warning
-            x: 462 - root.gaugeoffset
+            x: (312 + root.gaugemax) - root.gaugeoffset
             y: 147
             z: -11
             width: 40
@@ -916,7 +917,7 @@ Item {
         }
 
         Rectangle {
-            x: 491 - root.gaugeoffset
+            x: (341 + root.gaugemax) - root.gaugeoffset
             y: if (root.oiltempunits !== 0) {
                     if (root.oiltemp > 130)
                         59
@@ -945,7 +946,7 @@ Item {
 
         Text {
             id: oil_temperature
-            x: 474 - root.gaugeoffset
+            x: (324 + root.gaugemax) - root.gaugeoffset
             y: 172
             z: -11
             width: 15
@@ -963,7 +964,7 @@ Item {
 
         Text {
             id: oil_temperature_upper_label
-            x: 462 - root.gaugeoffset
+            x: (312 + root.gaugemax) - root.gaugeoffset
             y: 49
             z: 60
             width: 15
@@ -981,7 +982,7 @@ Item {
 
         Text {
             id: oil_temperature_middle_label
-            x: 512 - root.gaugeoffset
+            x: (362 + root.gaugemax) - root.gaugeoffset
             y: 121
             z: 60
             width: 15
@@ -999,7 +1000,7 @@ Item {
 
         Text {
             id: oil_temperature_lower_level
-            x: 537 - root.gaugeoffset
+            x: (387 + root.gaugemax) - root.gaugeoffset
             y: 196
             z: 60
             width: 15
@@ -1018,7 +1019,7 @@ Item {
         ////////// RPM INDICATOR /////////////////////////////////////////////
         Text {
             id: rpm_display
-            x: 569 - gaugeoffset
+            x: (419 + root.gaugemax) - gaugeoffset
             y: 229
             z: 60
             width: 15
@@ -1037,7 +1038,7 @@ Item {
         ////////// OIL PRESSURE INDICATOR ////////////////////////////////////
         Image {
             id: oil_pressure_warning
-            x: 462 - root.gaugeoffset
+            x: (312 + root.gaugemax) - root.gaugeoffset
             y: 314
             z: -11
             width: 41
@@ -1048,7 +1049,7 @@ Item {
         }
 
         Rectangle {
-            x: 491 - root.gaugeoffset
+            x: (341 + root.gaugemax) - root.gaugeoffset
             y: if (root.oilpressureunits !== 0) {
                     if (root.oilpresskpa > 800)
                         283
@@ -1077,12 +1078,12 @@ Item {
 
         Text {
             id: oil_pressure
-            x: 475 - root.gaugeoffset
+            x: (325 + root.gaugemax) - root.gaugeoffset
             y: 332
             z: -11
             width: 15
             height: 33
-            color: (root.gaugeopen >= 150 && root.oilpresswarning) ? "#ff0000" : "#dfdfdf"
+            color: (root.gaugeopen >= root.gaugemax && root.oilpresswarning) ? "#ff0000" : "#dfdfdf"
             text: (root.oilpressureunits !== 0) ? root.oilpresskpa.toFixed(0) + " kPa" : root.oilpresspsi.toFixed(0) + " psi"
             style: Text.Outline
             horizontalAlignment: Text.AlignHCenter
@@ -1095,7 +1096,7 @@ Item {
 
         Text {
             id: oil_pressure_upper_label
-            x: 537 - root.gaugeoffset
+            x: (387 + root.gaugemax) - root.gaugeoffset
             y: 272
             z: 60
             width: 15
@@ -1113,7 +1114,7 @@ Item {
 
         Text {
             id: oil_pressure_middle_label
-            x: 512 - root.gaugeoffset
+            x: (362 + root.gaugemax) - root.gaugeoffset
             y: 346
             z: 60
             width: 15
@@ -1131,7 +1132,7 @@ Item {
 
         Text {
             id: oil_pressure_lower_label
-            x: 462 - root.gaugeoffset
+            x: (312 + root.gaugemax) - root.gaugeoffset
             y: 420
             z: 60
             width: 15
