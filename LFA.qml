@@ -12,7 +12,6 @@ Item {
     property int fontsmall: 26
     property int fontlarge: 36
     property int udp_message: rpmtest.udp_packetdata
-    // onUdp_messageChanged: console.log(" UDP is "+udp_message)
 
     ////////// IC7 LCD RESOLUTION ////////////////////////////////////////////
     width: 800
@@ -150,13 +149,23 @@ Item {
     property real   batteryvoltage: rpmtest.batteryvoltagedata
     property real   batterylow: 0
 
-    ////////// AITFLOW VARIABLES /////////////////////////////////////////////
+    ////////// AIRFLOW VARIABLES /////////////////////////////////////////////
     property real   o2: rpmtest.o2data
     property real   afrlow: 0
     property real   afrhigh: 0
     property real   map: rpmtest.mapdata
     property real   maf: rpmtest.mafdata
 
+    ////////// DISPLAY MODE CONTROL /////////////////////////////////////////
+    property int    displayMode: 0 // 0 fadeIn logo, 1 dashboard (expand/run/contract), 2 fadeOut dashboard
+    property bool   fadeIn: root.ignition && (displayMode === 0)
+    property bool   isOpening: root.ignition && showDashboard && (root.gaugeopen >= 0) && (root.gaugeopen < root.gaugemax)
+    property bool   showDashboard: (displayMode > 0)
+    property bool   isClosing: (!root.ignition) && showDashboard && (root.gaugeopen >= 0)
+    property bool   fadeOut: (!root.ignition) && (displayMode === 2)
+    property bool   showIcons : showDashboard && (fuelhigh == 0)
+    property real   rpmToUse : (isClosing) ? 0 : root.rpm
+    
     ////////// TRANSAXLE GEAR VARIABLES //////////////////////////////////////
     property real   gearpos: rpmtest.geardata
     property string gearinfo: switch (gearpos) {
@@ -193,9 +202,65 @@ Item {
     ////////// FONT //////////////////////////////////////////////////////////
     FontLoader{id:gauge_font; source: "swiss721.ttf"}
 
+/* DEBUG TEXT
+    Text {
+        id: displayStatus
+        x: 0
+        y: 0
+        z: 250
+        width: 300
+        height: 33
+        color: "#ffffff"
+        text: ((root.ignition)?"IGN":"OFF")+":"+displayMode+":"+((isOpening)?"OPENING":"")+((isClosing)?"CLOSING":"")
+        style: Text.Outline
+        horizontalAlignment: Text.AlignHLeft
+        font.family: gauge_font.name
+        font.pixelSize: root.odopixelsize
+        font.bold: true
+        visible: true
+    }
+*/
+
+    ////////// LOTUS LOGO ////////////////////////////////////////////////////
+    Image {
+        id: lotus_logo
+        x: 0
+        y: 0
+        z: -300
+        width: 800
+        height: 480
+        fillMode: Image.PreserveAspectCrop
+        rotation: 0
+        source: "assets/lotus_logo.png"
+        opacity: 0
+        visible: fadeIn
+
+        SequentialAnimation on opacity {
+            loops: 1
+            running: (fadeIn)
+            PropertyAnimation { to: 1; duration: 3000 }
+            PauseAnimation { duration: 2000 }
+            PropertyAnimation { to: 0; duration: 1000 }
+            onStopped: {
+                if (root.ignition) { // ignition still on
+                    lotus_logo.opacity = 0
+                    center_dial.visible = true
+                    center_dial.opacity = 1
+                    displayMode = 1 // logo is done, next stage
+                }
+                else { // turned off ignition during animation
+                    center_dial.visible = false
+                    center_dial.opacity = 1
+                    displayMode = 0
+                    lotus_logo.opacity = 0
+                }
+            }
+        }    
+    }
+
     ////////// CENTER DIAL ///////////////////////////////////////////////////
     Item{
-        id: centre_dial
+        id: center_dial
         x: 180
 
         // OPEN GAUGES ON IGNITION START
@@ -203,33 +268,44 @@ Item {
             id: gaugeopen_timer
             interval: 30
             repeat: true
+            running: isOpening
 
-            running: if (root.gaugeopen >=0 && root.gaugeopen < root.gaugemax) true;
-                else false
-
-            onTriggered: if (root.ignition) {
+            onTriggered: if (showDashboard) {
                 gaugeclose_timer.stop();
-                root.gaugeopen += 3;
+
+                if (root.ignition) {
+                    root.gaugeopen += 3;
+                }
             }
         }
 
         // CLOSE GAUGES ON IGNITION STOP
-        // TODO: When ignition is turned back after this is closed the gauges are already fully open. Why?
         Timer{
             id: gaugeclose_timer
             interval: 30
             repeat: true
-
-            running: if (root.gaugeopen >= 0) true;
-                else false
+            running: isClosing
 
             onTriggered: if (!root.ignition && root.gaugeopen >= 0) {
-                root.gaugeopen = (root.gaugeopen > 0) ? root.gaugeopen - 3 : 0;
-                if (root.rpm > 0)
-                    root.rpm = 0;
-                // TODO: Do we want to do a slow opacity fade of the center gauge here?
+                root.gaugeopen = (root.gaugeopen > 0) ? root.gaugeopen - 3 : 0
+
+                if (root.gaugeopen <= 0)
+                    displayMode = 2;
             }
         }
+
+        // fadeout sequence
+        SequentialAnimation on opacity {
+            loops: 1
+            running: (fadeOut)
+            PropertyAnimation { to: 0; duration: 1000 }
+            onStopped: {
+                center_dial.visible = false
+                center_dial.opacity = 1
+                displayMode = 0
+                lotus_logo.opacity = 0
+            }
+        }    
 
         Image {
             id: rpm_needle
@@ -244,11 +320,10 @@ Item {
             antialiasing: true
             rotation: 0
             source: "assets/new_needle.png"
-            visible:false
+            visible: false
             opacity: 1
 
-            property real rpm: root.rpm
-            property real rpm_mathed:(rpm*0.03)
+            property real rpm_mathed:(rpmToUse * 0.03)
             property real needlefollower:rpmshadowneedleRotation.angle
 
             onNeedlefollowerChanged: rever.requestPaint()
@@ -258,10 +333,10 @@ Item {
                 interval: 50
                 repeat: true
 
-                running: if (parent.height < root.gaugemax && root.rpm > 100) true;
+                running: if (parent.height < root.gaugemax && rpmToUse > 100) true;
                     else false
 
-                onTriggered: if (root.rpm > 100) {
+                onTriggered: if (rpmToUse > 100) {
                     parent.height += 20
                     shrink.stop()
                 }
@@ -272,7 +347,7 @@ Item {
                 interval: 50
                 repeat: true
 
-                running: if (parent.height > 0 && root.rpm < 100) true;
+                running: if (parent.height > 0 && rpmToUse < 100) true;
                     else false
 
                 onTriggered:parent.height -= 5
@@ -295,6 +370,7 @@ Item {
             cached: false
             source: rpm_needle
             z: 5
+            visible: showDashboard
 
             horizontalOffset: if (rpmshadowneedleRotation.angle < 180)
                 -15 + (rpmshadowneedleRotation.angle / 7);
@@ -305,12 +381,12 @@ Item {
                 id: rpmshadowneedleRotation
                 origin.x: 12;
                 origin.y: -30
-                angle: Math.min(Math.max(0, (rpm_needle.rpm_mathed)), 360) // [needle angle]
+                angle: Math.min(Math.max(0, (rpm_needle.rpm_mathed)), 360)
 
                 Behavior on angle {
                     SpringAnimation {
-                        spring: 1.4
-                        damping: 0.16
+                        spring: 1.6  // 1.4 original
+                        damping: 0.25 // 0.16 original
                     }
                 }
             }
@@ -327,8 +403,9 @@ Item {
             antialiasing: true;
             smooth: true;
             opacity:0.8
+            visible: showDashboard && (!isClosing) && (!fadeOut)
 
-            property real angle: (root.settings2 * 40 * 0.03) // -13.85
+            property real angle: (root.settings2 * 40 * 0.03)
             property string colour: (root.rpm >= root.rpmshiftvalue) ? "#ff0000" : "#cfcfcf"
 
             onPaint: {
@@ -337,7 +414,7 @@ Item {
                 ctx.lineWidth = 60
                 ctx.strokeStyle = rever.colour
                 ctx.beginPath()
-                ctx.arc(220, 243, 170, 1.55, (rpmshadowneedleRotation.angle/57)+1.55, false)
+                ctx.arc(220, 243, 170, 1.55, (rpmshadowneedleRotation.angle / 57) + 1.55, false)
                 ctx.stroke()
                 ctx.closePath()
             }
@@ -354,6 +431,7 @@ Item {
             antialiasing: true;
             smooth: true;
             opacity:1
+            visible: showDashboard && (!isClosing) && (!fadeOut)
 
             property real angle: (root.rpmredline*0.03)//-13.85
             property real lineend: if((root.settings&0x20)==0x20)280;else 299
@@ -379,6 +457,7 @@ Item {
             width: 472
             height: 471
             source: "assets/lfa_ring.png"
+            visible: showDashboard
         }
 
         ////////// LEFT GAUGE SLIDER /////////////////////////////////////////
@@ -390,6 +469,7 @@ Item {
             width: 122
             height: 380
             source: "assets/left_gauges.png"
+            visible: showDashboard            
         }
 
         ////////// RIGHT GAUGE SLIDER ////////////////////////////////////////
@@ -401,6 +481,7 @@ Item {
             width: 122
             height: 380
             source: "assets/right_gauges.png"
+            visible: showDashboard            
         }
 
         ////////// TURN INDICATORS ///////////////////////////////////////////
@@ -412,7 +493,7 @@ Item {
             width: 42
             height: 44
             source: "assets/left_indicator.png"
-            visible: (root.leftindicator)
+            visible: showDashboard && root.leftindicator
         }
 
         Image {
@@ -423,7 +504,7 @@ Item {
             width: 42
             height: 44
             source: "assets/right_indicator.png"
-            visible: (root.rightindicator)
+            visible: showDashboard && root.rightindicator
         }
 
         ////////// LOWER LEFT WARNING INDICATORS /////////////////////////////
@@ -437,7 +518,7 @@ Item {
             fillMode: Image.PreserveAspectCrop
             rotation: 0
             source: "assets/seatbelt_warning.png"
-            visible: root.seatbelt && (root.fuelhigh === 0)
+            visible: showIcons && root.seatbelt
         }
 
         Image {
@@ -450,7 +531,7 @@ Item {
             fillMode: Image.PreserveAspectCrop
             rotation: 0
             source: "assets/door_open.png"
-            visible: root.doorswitch && (root.fuelhigh === 0)
+            visible: showIcons && root.doorswitch
         }
 
         Image {
@@ -463,7 +544,7 @@ Item {
             fillMode: Image.PreserveAspectCrop
             rotation: 0
             source: "assets/brake_warning.png"
-            visible: (root.brake | root.handbrake)  && (root.fuelhigh === 0)
+            visible: showIcons && (root.brake | root.handbrake)
         }
 
         ////////// LOWER RIGHT WARNING INDICATORS /////////////////////////////
@@ -477,7 +558,7 @@ Item {
             fillMode: Image.PreserveAspectCrop
             rotation: 0
             source: "assets/airbag_warning.png"
-            visible: root.airbag && (root.fuelhigh === 0)
+            visible: showIcons && root.airbag
         }
 
         Image {
@@ -490,7 +571,7 @@ Item {
             fillMode: Image.PreserveAspectCrop
             rotation: 0
             source: "assets/battery_warning.png"
-            visible: root.battery && (root.fuelhigh === 0)
+            visible: showIcons && root.battery
         }
 
         Image {
@@ -503,7 +584,7 @@ Item {
             fillMode: Image.PreserveAspectCrop
             rotation: 0
             source: "assets/abs_warning.png"
-            visible: root.abs && (root.fuelhigh === 0)
+            visible: showIcons && root.abs
         }
 
         ////////// INSIDE GAUGE INDICATORS /////////////////////////////
@@ -517,7 +598,7 @@ Item {
             fillMode: Image.PreserveAspectCrop
             rotation: 0
             source: "assets/high_beam.png"
-            visible: root.mainbeam && (root.fuelhigh === 0)
+            visible: showIcons && root.mainbeam
         }
 
         Image {
@@ -530,7 +611,7 @@ Item {
             fillMode: Image.PreserveAspectCrop
             rotation: 0
             source: "assets/mil_warning.png"
-            visible: root.mil && (root.fuelhigh === 0)
+            visible: showIcons && root.mil
         }
 
         ////////// SPEED GAUGE ///////////////////////////////////////////////
@@ -542,12 +623,13 @@ Item {
             width: 150
             height: 50 
             color: "#ffffff"
-            text: speedvalue.toFixed(0)
+            text: (isClosing)? "0" : speedvalue.toFixed(0)
             style: Text.Outline
             horizontalAlignment: Text.AlignHCenter
             font.family: gauge_font.name
             font.pixelSize: root.odopixelsize * 1.6
             font.bold: true
+            visible: showDashboard
         }
 
         Text {
@@ -564,6 +646,7 @@ Item {
             font.family: gauge_font.name
             font.pixelSize: root.odopixelsize / 2
             font.bold: true
+            visible: showDashboard
         }
 
         Rectangle {
@@ -576,6 +659,7 @@ Item {
             radius: 0
             border.color: "#5f5f5f"
             border.width: 0
+            visible: showDashboard
         }
 
         ////////// GEAR SELECTION GAUGE //////////////////////////////////////
@@ -587,13 +671,13 @@ Item {
             width: 15
             height: 33
             color: "#ffffff"
-            text: root.gearinfo
+            text: (!isClosing) ? root.gearinfo : ""
             style: Text.Outline
             horizontalAlignment: Text.AlignHCenter
             font.family: gauge_font.name
             font.pixelSize: root.odopixelsize * 1.4
             font.bold: true
-            visible: (root.gearpos > 0)
+            visible: showDashboard && (root.gearpos > 0)
         }
 
         ////////// TRIP DISPLAY //////////////////////////////////////////////
@@ -611,6 +695,7 @@ Item {
             font.family: gauge_font.name
             font.pixelSize: root.odopixelsize / 2
             font.bold: false
+            visible: showDashboard
         }
 
         Text {
@@ -627,6 +712,7 @@ Item {
             font.family: gauge_font.name
             font.pixelSize: root.odopixelsize / 2
             font.bold: false
+            visible: showDashboard
         }
 
         ////////// RANGE DISPLAY /////////////////////////////////////////////
@@ -644,6 +730,7 @@ Item {
             font.family: gauge_font.name
             font.pixelSize: root.odopixelsize / 2
             font.bold: false
+            visible: showDashboard
         }
 
         Text {
@@ -660,6 +747,7 @@ Item {
             font.family: gauge_font.name
             font.pixelSize: root.odopixelsize / 2
             font.bold: false
+            visible: showDashboard
         }
 
         ////////// RPM TEXT //////////////////////////////////////////////////
@@ -677,6 +765,7 @@ Item {
             font.family: gauge_font.name
             font.pixelSize: root.odopixelsize / 3
             font.bold: false
+            visible: showDashboard
         }
 
         Text {
@@ -693,6 +782,7 @@ Item {
             font.family: gauge_font.name
             font.pixelSize: root.odopixelsize / 3
             font.bold: false
+            visible: showDashboard
         }
 
         ////////// COOLANT INDICATORS ////////////////////////////////////////
@@ -1029,7 +1119,7 @@ Item {
             width: 15
             height: 33
             color: "#afafaf"
-            text: rpm + "  RPM"
+            text: rpmToUse + "  RPM"
             style: Text.Outline
             horizontalAlignment: Text.AlignRight
             font.family: gauge_font.name
@@ -1160,15 +1250,17 @@ Item {
             z: -4
             smooth: true
             source: "assets/bezel_gray_0_0_.png"
+            visible: showDashboard            
         }
 
         Image {
             id: white_indent
             x: 0
             y: 0
+            z: 4
             smooth: false
             source: "assets/white_indents_0_0.png"
-            z: 4
+            visible: showDashboard            
         }
 
         Image {
@@ -1178,6 +1270,7 @@ Item {
             z: 0
             source: "assets/black_centre_0_0.png"
             scale: 1.4
+            visible: showDashboard            
 
             Timer{
                 interval: 50
@@ -1208,6 +1301,7 @@ Item {
                 font.family: gauge_font.name
                 font.pixelSize: root.odopixelsize
                 font.bold: true
+                visible: showDashboard            
             }
         }
 
@@ -1222,19 +1316,7 @@ Item {
             fillMode: Image.PreserveAspectCrop
             rotation: 60
             source: "assets/white_indents_0_0.png"
-        }
-
-        Image {
-            id: white_indent2
-            x: 122
-            y: 0
-            z: 3
-            width: 200
-            height: 480
-            fillMode: Image.PreserveAspectCrop
-            rotation: 90
-            source: "assets/white_indents_0_0.png"
-            visible: if((root.settings&0x20)==0x20)false;else true
+            visible: showDashboard            
         }
     }
 }
