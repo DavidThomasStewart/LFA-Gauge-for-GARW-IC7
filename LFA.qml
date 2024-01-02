@@ -61,8 +61,8 @@ Item {
     property int tripmeter: rpmtest.tripmileage0data
     property real odopixelsize: 36
 
-    property real odometervalue : (root.speedunits === 0) ? (odometer / 10) : ((odometer / 10) / 1.609)
-    property real tripmetervalue : (root.speedunits === 0) ? (tripmeter / 10) : ((tripmeter / 10) / 1.609)
+    property real odometervalue : odometer //(root.speedunits === 0) ? (odometer / 10) : ((odometer / 10) / 1.609)
+    property real tripmetervalue : tripmeter //(root.speedunits === 0) ? (tripmeter / 10) : ((tripmeter / 10) / 1.609)
 
     ////////// RPM VARIABLES /////////////////////////////////////////////////
     property real rpm: rpmtest.rpmdata
@@ -126,7 +126,7 @@ Item {
     property real   rangefuel : (fuellevel > 6) ? ((fuellevel - 6) / 100) : 0 
 
                     // range calculation assumes (240 miles) with FULL tank and (165 miles) remaining when fuel drops below 100% fuel indicated
-    property real   rangecalc : (fuellevel >= 100) ? (240 - ((tripmeter / 10) / 1.609)) : (rangefuel * 165)
+    property real   rangecalc : (fuellevel >= 100) ? (240 - tripmeter) : (rangefuel * 165)
 
     ////////// OIL VARIABLES /////////////////////////////////////////////////
     property real   oiltemp: rpmtest.oiltempdata
@@ -741,7 +741,7 @@ Item {
             width: 15
             height: 33
             color: (root.fuelwarning) ? ((root.rangecalc < 1) ? "#ff0000" : "#ffcf00") : "#cfcfcf"
-            text: (root.speedunits === 0) ? (root.rangecalc * 1.609).toFixed(1) + " km" : root.rangecalc.toFixed(1) + " miles"
+            text: (root.speedunits === 0) ? (root.rangecalc).toFixed(1) + " km" : root.rangecalc.toFixed(1) + " miles"
             style: Text.Outline
             horizontalAlignment: Text.AlignRight
             font.family: gauge_font.name
