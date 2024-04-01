@@ -61,9 +61,6 @@ Item {
     property int tripmeter: rpmtest.tripmileage0data
     property real odopixelsize: 36
 
-    property real odometervalue : odometer //(root.speedunits === 0) ? (odometer / 10) : ((odometer / 10) / 1.609)
-    property real tripmetervalue : tripmeter //(root.speedunits === 0) ? (tripmeter / 10) : ((tripmeter / 10) / 1.609)
-
     ////////// RPM VARIABLES /////////////////////////////////////////////////
     property real rpm: rpmtest.rpmdata
     onRpmChanged:  if (rpm < 500) blackcentre.scale = 1.4
@@ -91,7 +88,7 @@ Item {
     }
     onRpmredlineChanged: redline.requestPaint()
 
-    property int rpmshiftvalue : (shiftvalue === 0) ? ((rpmredline < 8000) ? rpmredline + 50 : 8000) : shiftvalue;
+    property int rpmshiftvalue : (shiftvalue === 0) ? ((rpmredline < 8250) ? rpmredline + 50 : 8250) : shiftvalue;
 
     ////////// SPEED VARIABLES ///////////////////////////////////////////////
     property real   speed: rpmtest.speeddata
@@ -137,13 +134,13 @@ Item {
     property bool   oiltempwarning : (oiltemphigh === 0 && oiltempf > 225) || (oiltemphigh > 0 && oiltempf >= oiltemphigh)
 
     property real   oilpressure: rpmtest.oilpressuredata
-    property real   oilpressurehigh: 0
-    property real   oilpressurelow: 10
-    property real   oilpressureunits: 0
-    property real   oilpress : (oilpressure > 0) ? oilpressure * gaugeopacity : 0
+    property real   oilpressurehigh: root.oilpressurehigh
+    property real   oilpressurelow: root.oilpressurelow
+    property real   oilpressureunits: root.oilpressureunits
+    property real   oilpress : (oilpressure > 0) ? oilpressure : 0
     property real   oilpresskpa : oilpress * 100
     property real   oilpresspsi : oilpress * 14.503
-    property bool   oilpresswarning : (root.oil || (root.rpm >= 850 && ((oilpressurelow === 0 && root.oilpresspsi < 20) || (oilpressurelow > 0 && root.oilpress < oilpressurelow))))
+    property bool   oilpresswarning : (root.oil || (root.rpm >= 850 && ((oilpressureunits === 0 && oilpresspsi < oilpressurelow) || (oilpressureunits === 1 && oilpresskpa < oilpressurelow))))
 
     ////////// BATTERY VARIABLES /////////////////////////////////////////////
     property real   batteryvoltage: rpmtest.batteryvoltagedata
@@ -201,25 +198,6 @@ Item {
 
     ////////// FONT //////////////////////////////////////////////////////////
     FontLoader{id:gauge_font; source: "swiss721.ttf"}
-
-/* DEBUG TEXT
-    Text {
-        id: displayStatus
-        x: 0
-        y: 0
-        z: 250
-        width: 300
-        height: 33
-        color: "#ffffff"
-        text: ((root.ignition)?"IGN":"OFF")+":"+displayMode+":"+((isOpening)?"OPENING":"")+((isClosing)?"CLOSING":"")
-        style: Text.Outline
-        horizontalAlignment: Text.AlignHLeft
-        font.family: gauge_font.name
-        font.pixelSize: root.odopixelsize
-        font.bold: true
-        visible: true
-    }
-*/
 
     ////////// LOTUS LOGO ////////////////////////////////////////////////////
     Image {
@@ -591,14 +569,14 @@ Item {
         Image {
             id: high_beam
             x: 203
-            y: 102
+            y: 103
             z: 3
             width: 39
             height: 28
             fillMode: Image.PreserveAspectCrop
             rotation: 0
             source: "assets/high_beam.png"
-            visible: showIcons && root.mainbeam
+            visible: showDashboard && root.mainbeam
         }
 
         Image {
@@ -618,7 +596,7 @@ Item {
         Text {
             id: speedmph
             x: 148
-            y: 119
+            y: 121
             z: 50
             width: 150
             height: 50 
@@ -635,7 +613,7 @@ Item {
         Text {
             id: mphlabel
             x: 215
-            y: 183
+            y: 185
             z: 50
             width: 15
             height: 33
@@ -666,7 +644,7 @@ Item {
         Text {
             id: gearlabel
             x: 215
-            y: 210
+            y: 195
             z: 50
             width: 15
             height: 33
@@ -675,7 +653,7 @@ Item {
             style: Text.Outline
             horizontalAlignment: Text.AlignHCenter
             font.family: gauge_font.name
-            font.pixelSize: root.odopixelsize * 1.4
+            font.pixelSize: root.odopixelsize * 2
             font.bold: true
             visible: showDashboard && (root.gearpos > 0)
         }
@@ -683,9 +661,9 @@ Item {
         ////////// TRIP DISPLAY //////////////////////////////////////////////
         Text {
             id: triplabel
-            x: 188
+            x: (root.speedunits === 0) ? 195 : 184
             y: 280
-            z: 50
+            z: 63
             width: 15
             height: 33
             color: "#cfcfcf"
@@ -700,13 +678,13 @@ Item {
 
         Text {
             id: trip
-            x: 290
+            x: (root.speedunits === 0) ? 286 : 293
             y: 280
-            z: 50
+            z: 63
             width: 15
             height: 33
             color: "#cfcfcf"
-            text: root.tripmetervalue.toFixed(1) + ((root.speedunits === 0) ? " km" : " miles")
+            text: root.tripmeter.toFixed(1) + ((root.speedunits === 0) ? " km" : " miles")
             style: Text.Outline
             horizontalAlignment: Text.AlignRight
             font.family: gauge_font.name
@@ -718,9 +696,9 @@ Item {
         ////////// RANGE DISPLAY /////////////////////////////////////////////
         Text {
             id: rangelabel
-            x: 188
+            x: (root.speedunits === 0) ? 195 : 184
             y: 302
-            z: 50
+            z: 63
             width: 15
             height: 33
             color: "#cfcfcf"
@@ -735,13 +713,13 @@ Item {
 
         Text {
             id: range
-            x: 290
+            x: (root.speedunits === 0) ? 286 : 293
             y: 302
-            z: 50
+            z: 63
             width: 15
             height: 33
             color: (root.fuelwarning) ? ((root.rangecalc < 1) ? "#ff0000" : "#ffcf00") : "#cfcfcf"
-            text: (root.speedunits === 0) ? (root.rangecalc).toFixed(1) + " km" : root.rangecalc.toFixed(1) + " miles"
+            text: root.rangecalc.toFixed(1) + ((root.speedunits === 0) ? " km" : " miles")
             style: Text.Outline
             horizontalAlignment: Text.AlignRight
             font.family: gauge_font.name
@@ -907,7 +885,7 @@ Item {
             width: 15
             height: 33
             color: "#afafaf"
-            text: root.odometervalue.toFixed(0) + ((root.speedunits === 0) ? " KM" : " MI")
+            text: root.odometer.toFixed(0) + ((root.speedunits === 0) ? " KM" : " MI")
             style: Text.Outline
             horizontalAlignment: Text.AlignLeft
             font.family: gauge_font.name
