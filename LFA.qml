@@ -644,7 +644,7 @@ Item {
         Text {
             id: gearlabel
             x: 215
-            y: 195
+            y: 200
             z: 50
             width: 15
             height: 33
@@ -653,7 +653,7 @@ Item {
             style: Text.Outline
             horizontalAlignment: Text.AlignHCenter
             font.family: gauge_font.name
-            font.pixelSize: root.odopixelsize * 2
+            font.pixelSize: root.odopixelsize * 1.75
             font.bold: true
             visible: showDashboard && (root.gearpos > 0)
         }
@@ -806,8 +806,8 @@ Item {
 
         Text {
             id: coolant_temp
-            x: (105 - root.gaugemax) + root.gaugeoffset
-            y: 172
+            x: (104 - root.gaugemax) + root.gaugeoffset
+            y: 173
             z: -11
             width: 15
             height: 33
@@ -816,7 +816,7 @@ Item {
             style: Text.Outline
             horizontalAlignment: Text.AlignHCenter
             font.family: gauge_font.name
-            font.pixelSize: root.odopixelsize / 3
+            font.pixelSize: root.odopixelsize / 2.5
             font.bold: false
             visible: root.gaugevisibility
             opacity: root.gaugeopacity
@@ -923,8 +923,8 @@ Item {
 
         Text {
             id: fuel_level
-            x: (104 - root.gaugemax) + root.gaugeoffset
-            y: 332
+            x: (102 - root.gaugemax) + root.gaugeoffset
+            y: 333
             z: -11
             width: 15
             height: 33
@@ -933,7 +933,7 @@ Item {
             style: Text.Outline
             horizontalAlignment: Text.AlignHCenter
             font.family: gauge_font.name
-            font.pixelSize: root.odopixelsize / 3
+            font.pixelSize: root.odopixelsize / 2.5
             font.bold: false
             visible: root.gaugevisibility
             opacity: root.gaugeopacity
@@ -1018,8 +1018,8 @@ Item {
 
         Text {
             id: oil_temperature
-            x: (324 + root.gaugemax) - root.gaugeoffset
-            y: 172
+            x: (323 + root.gaugemax) - root.gaugeoffset
+            y: 173
             z: -11
             width: 15
             height: 33
@@ -1028,7 +1028,7 @@ Item {
             style: Text.Outline
             horizontalAlignment: Text.AlignHCenter
             font.family: gauge_font.name
-            font.pixelSize: root.odopixelsize / 3
+            font.pixelSize: root.odopixelsize / 2.5
             font.bold: false
             visible: root.gaugevisibility
             opacity: root.gaugeopacity
@@ -1150,8 +1150,8 @@ Item {
 
         Text {
             id: oil_pressure
-            x: (325 + root.gaugemax) - root.gaugeoffset
-            y: 332
+            x: (324 + root.gaugemax) - root.gaugeoffset
+            y: 333
             z: -11
             width: 15
             height: 33
@@ -1160,7 +1160,7 @@ Item {
             style: Text.Outline
             horizontalAlignment: Text.AlignHCenter
             font.family: gauge_font.name
-            font.pixelSize: root.odopixelsize / 3
+            font.pixelSize: root.odopixelsize / 2.5
             font.bold: false
             visible: root.gaugevisibility
             opacity: root.gaugeopacity
