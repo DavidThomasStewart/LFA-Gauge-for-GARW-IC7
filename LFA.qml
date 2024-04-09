@@ -134,13 +134,13 @@ Item {
     property bool   oiltempwarning : (oiltemphigh === 0 && oiltempf > 225) || (oiltemphigh > 0 && oiltempf >= oiltemphigh)
 
     property real   oilpressure: rpmtest.oilpressuredata
-    property real   oilpressurehigh: 0
-    property real   oilpressurelow: 10
-    property real   oilpressureunits: 0
-    property real   oilpress : (oilpressure > 0) ? oilpressure * gaugeopacity : 0
+    property real   oilpressurehigh: root.oilpressurehigh
+    property real   oilpressurelow: root.oilpressurelow
+    property real   oilpressureunits: root.oilpressureunits
+    property real   oilpress : (oilpressure > 0) ? oilpressure : 0
     property real   oilpresskpa : oilpress * 100
     property real   oilpresspsi : oilpress * 14.503
-    property bool   oilpresswarning : (root.oil || (root.rpm >= 850 && ((oilpressurelow === 0 && root.oilpresspsi < 20) || (oilpressurelow > 0 && root.oilpress < oilpressurelow))))
+    property bool   oilpresswarning : (root.oil || (root.rpm >= 850 && ((oilpressureunits === 0 && oilpresspsi < oilpressurelow) || (oilpressureunits === 1 && oilpresskpa < oilpressurelow))))
 
     ////////// BATTERY VARIABLES /////////////////////////////////////////////
     property real   batteryvoltage: rpmtest.batteryvoltagedata
