@@ -1282,19 +1282,5 @@ Item {
                 visible: showDashboard            
             }
         }
-
-        ////////// GAUGE DIAL INDENTS ////////////////////////////////////////
-        Image {
-            id: white_indent1
-            x: 122
-            y: 0
-            z: 3
-            width: 200
-            height: 480
-            fillMode: Image.PreserveAspectCrop
-            rotation: 60
-            source: "assets/white_indents_0_0.png"
-            visible: showDashboard            
-        }
     }
 }
