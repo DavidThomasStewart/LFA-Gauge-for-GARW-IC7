@@ -649,7 +649,7 @@ Item {
             id: speedmph
             x: 144
             y: 120
-            z: 50
+            z: 6
             width: 150
             height: 50 
             color: "#ffffff"
@@ -666,7 +666,7 @@ Item {
             id: mphlabel
             x: 211
             y: 193
-            z: 50
+            z: 6
             width: 15
             height: 33
             color: "#cfcfcf"
@@ -682,7 +682,7 @@ Item {
         Rectangle {
             x: 144
             y: 220
-            z: 50
+            z: 6
             width: 150
             height: 2
             color: "#5f5f5f"
@@ -696,7 +696,7 @@ Item {
             id: gearlabel
             x: 211
             y: 209
-            z: 50
+            z: 6
             width: 15
             height: 33
             color: "#ffffff"
@@ -714,7 +714,7 @@ Item {
             id: triplabel
             x: (root.speedunits === 0) ? 192 : 181
             y: 288
-            z: 63
+            z: 6
             width: 15
             height: 33
             color: "#cfcfcf"
@@ -731,7 +731,7 @@ Item {
             id: trip
             x: (root.speedunits === 0) ? 283 : 290
             y: 288
-            z: 63
+            z: 6
             width: 15
             height: 33
             color: "#cfcfcf"
@@ -748,7 +748,7 @@ Item {
             id: rangelabel
             x: (root.speedunits === 0) ? 192 : 181
             y: 310
-            z: 63
+            z: 6
             width: 15
             height: 33
             color: "#cfcfcf"
@@ -765,7 +765,7 @@ Item {
             id: range
             x: (root.speedunits === 0) ? 283 : 290
             y: 310
-            z: 63
+            z: 6
             width: 15
             height: 33
             color: (root.fuelwarning) ? ((root.rangecalc < 1) ? "red" : "#ffcf00") : "#cfcfcf"
@@ -827,6 +827,7 @@ Item {
         }
 
         Rectangle {
+            id: water_temp_rect
             x: (15 - root.gaugemax) + root.gaugeoffset
             y: if (root.waterunits !== 0) {
                     if (root.watertemp > 120)
@@ -847,11 +848,42 @@ Item {
             z: -50
             width: 86
             height: 205 - y
-            color: (root.waterwarning) ? "red" : ((root.watertempf < 180) ? "#00ffff" : "#e3eef6")
             radius: 0
             border.width: 0
             visible: root.gaugevisibility
             opacity: root.gaugeopacity
+
+            SequentialAnimation {
+                id: waterwarning_animation
+                loops: Animation.Infinite
+                running: false
+
+                PropertyAnimation {
+                    target: water_temp_rect
+                    property: "color"
+                    from: "red"
+                    to: "#3f0000"
+                    duration: 250
+                }
+
+                PropertyAnimation {
+                    target: water_temp_rect
+                    property: "color"
+                    from: "#3f0000"
+                    to: "red"
+                    duration: 125
+                }
+            }
+
+            property int waterTemp: (root.watertempf)
+            onWaterTempChanged: {
+                if (root.waterwarning) {
+                    waterwarning_animation.restart()
+                } else {
+                    waterwarning_animation.stop()
+                    color = ((root.watertempf < 180) ? "#00ffff" : "#e3eef6")
+                }
+            }
         }
 
         Text {
@@ -1039,6 +1071,7 @@ Item {
         }
 
         Rectangle {
+            id: oil_temp_rect
             x: (340 + root.gaugemax) - root.gaugeoffset
             y: if (root.oiltempunits !== 0) {
                     if (root.oiltemp > 130)
@@ -1059,11 +1092,42 @@ Item {
             z: -50
             width: 86
             height: 205 - y
-            color: (root.oiltempwarning) ? "red" : ((root.oiltempf < 180) ? "#00ffff" : "#e3eef6")
             radius: 0
             border.width: 0
             visible: root.gaugevisibility
             opacity: root.gaugeopacity
+
+            SequentialAnimation {
+                id: oilwarning_animation
+                loops: Animation.Infinite
+                running: false
+
+                PropertyAnimation {
+                    target: oil_temp_rect
+                    property: "color"
+                    from: "red"
+                    to: "#3f0000"
+                    duration: 250
+                }
+
+                PropertyAnimation {
+                    target: oil_temp_rect
+                    property: "color"
+                    from: "#3f0000"
+                    to: "red"
+                    duration: 125
+                }
+            }
+
+            property int oilTemp: (root.oiltempf)
+            onOilTempChanged: {
+                if (root.oiltempwarning) {
+                    oilwarning_animation.restart()
+                } else {
+                    oilwarning_animation.stop()
+                    color = ((root.oiltempf < 180) ? "#00ffff" : "#e3eef6")
+                }
+            }
         }
 
         Text {
