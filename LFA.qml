@@ -5,6 +5,9 @@ import "assets"
 Item {
     id: root
 
+    ////////// FONT //////////////////////////////////////////////////////////
+    FontLoader{id:gauge_font; source: "saira.medium.ttf"}
+
     ////////// MISCELLANEOUS VARIABLES ///////////////////////////////////////
     property real indentpixelsize: 45
     property int membank2_byte7: rpmtest.can203data[10];
@@ -63,7 +66,7 @@ Item {
 
     ////////// RPM VARIABLES /////////////////////////////////////////////////
     property real rpm: rpmtest.rpmdata
-    onRpmChanged:  if (rpm < 500) blackcentre.scale = 1.4
+    property bool cranking : (root.rpm > 500)
 
     property real rpmlimit: 0
     onRpmlimitChanged: redline.requestPaint()
@@ -96,7 +99,7 @@ Item {
     property int    speedvalue : (root.speedunits === 0) ? speed : (speed / 1.609)
 
     ////////// GAUGE SLIDER VARIABLES ////////////////////////////////////////
-    property int    gaugemax: 168   // 135-182 is valid range
+    property int    gaugemax: 170   // 135-182 is valid range
     property int    gaugeopen: 0
     property int    gaugeoffset: (gaugemax - gaugeopen);
     property bool   gaugevisibility: (gaugeopen > 40)
@@ -140,7 +143,7 @@ Item {
     property real   oilpress : (oilpressure > 0) ? oilpressure : 0
     property real   oilpresskpa : oilpress * 100
     property real   oilpresspsi : oilpress * 14.503
-    property bool   oilpresswarning : (root.oil || (root.rpm >= 850 && ((oilpressureunits === 0 && oilpresspsi < oilpressurelow) || (oilpressureunits === 1 && oilpresskpa < oilpressurelow))))
+    property bool   oilpresswarning : (root.oil || (cranking && ((oilpressureunits === 0 && oilpresspsi < oilpressurelow) || (oilpressureunits === 1 && oilpresskpa < oilpressurelow))))
 
     ////////// BATTERY VARIABLES /////////////////////////////////////////////
     property real   batteryvoltage: rpmtest.batteryvoltagedata
@@ -154,7 +157,7 @@ Item {
     property real   maf: rpmtest.mafdata
 
     ////////// DISPLAY MODE CONTROL /////////////////////////////////////////
-    property int    displayMode: 0 // 0 fadeIn logo, 1 dashboard (expand/run/contract), 2 fadeOut dashboard
+    property int    displayMode: 1 // 0 fadeIn logo, 1 dashboard (expand/run/contract), 2 fadeOut dashboard
     property bool   fadeIn: root.ignition && (displayMode === 0)
     property bool   isOpening: root.ignition && showDashboard && (root.gaugeopen >= 0) && (root.gaugeopen < root.gaugemax)
     property bool   showDashboard: (displayMode > 0)
@@ -177,27 +180,24 @@ Item {
         case 8: return "8";
         case 9: return "P";
         case 10: return "R";
-        default: return "-"; // this will be neutral (not calculated)
+        default: return ""; // this will be neutral (not calculated)
         // 100 is the value that says do not display gear position
     }
 
     ////////// GAUGE DIGITS 0-10 POINT LOCATIONS /////////////////////////////
     property var digitList: [
-        { x: 209, y: 388 },
-        { x: 128, y: 365 },
-        { x: 69, y: 305 },
-        { x: 40, y: 218 },
-        { x: 62, y: 130 },
-        { x: 125, y: 75 },
-        { x: 209, y: 52 },
-        { x: 293, y: 75 },
-        { x: 353, y: 130 },
-        { x: 377, y: 218 },
-        { x: 355, y: 305 }
+        { x: 204, y: 393 }, // 0
+        { x: 114, y: 370 }, // 1
+        { x:  54, y: 307 }, // 2
+        { x:  30, y: 217 }, // 3
+        { x:  54, y: 131 }, // 4
+        { x: 119, y:  71 }, // 5
+        { x: 206, y:  47 }, // 6
+        { x: 290, y:  71 }, // 7
+        { x: 355, y: 131 }, // 8
+        { x: 382, y: 217 }, // 9
+        { x: 357, y: 307 }  // 10
     ]
-
-    ////////// FONT //////////////////////////////////////////////////////////
-    FontLoader{id:gauge_font; source: "swiss721.ttf"}
 
     ////////// LOTUS LOGO ////////////////////////////////////////////////////
     Image {
@@ -287,8 +287,8 @@ Item {
 
         Image {
             id: rpm_needle
-            x: 211
-            y: 280
+            x: 207
+            y: 283
             z: 5
             width: 24
             height: 1
@@ -363,8 +363,8 @@ Item {
 
                 Behavior on angle {
                     SpringAnimation {
-                        spring: 1.6  // 1.4 original
-                        damping: 0.25 // 0.16 original
+                        spring: 2.0 // 1.6
+                        damping: 0.25 // 0.25
                     }
                 }
             }
@@ -384,7 +384,7 @@ Item {
             visible: showDashboard && (!isClosing) && (!fadeOut)
 
             property real angle: (root.settings2 * 40 * 0.03)
-            property string colour: (root.rpm >= root.rpmshiftvalue) ? "#ff0000" : "#cfcfcf"
+            property string colour: (root.rpm >= root.rpmshiftvalue) ? "red" : "#8B8B94"
 
             onPaint: {
                 var ctx = getContext("2d")
@@ -405,37 +405,89 @@ Item {
             y: 0
             z: -4
             width: 500;
-            height: 500
+            height: 500;
             antialiasing: true;
             smooth: true;
             opacity:1
-            visible: showDashboard && (!isClosing) && (!fadeOut)
+            visible: (cranking) && (!isClosing) && (!fadeOut);
 
-            property real angle: (root.rpmredline*0.03)//-13.85
-            property real lineend: if((root.settings&0x20)==0x20)280;else 299
+            function getValueColor(value) {
+                var minValue = 2500;
+                var maxValue = 8500;
+                value = Math.max(minValue, Math.min(maxValue, value));
+                var proportion = (value - minValue) / (maxValue - minValue);
+                var r = Math.floor(255 - (255 * proportion));
+                var rHex = r.toString(16).toUpperCase();
+                if (rHex.length < 2) rHex = "0" + rHex;
+                return "#FF" + rHex + "00";
+            }
+
+            property real angle: (root.rpmredline*0.0298)
+
+            property string arcColor: getValueColor(root.rpmredline)
 
             onPaint: {
                 var ctx = getContext("2d")
-                ctx.clearRect(0,0,root.width, root.height);
+                ctx.clearRect(0, 0, root.width, root.height)
                 ctx.lineWidth = 60
-                ctx.strokeStyle = "red"
+                ctx.strokeStyle = arcColor // Use dynamically calculated color instead of "red"
                 ctx.beginPath()
-                ctx.arc(220, 243, 170, (redline.angle/57)+1.55, (redline.lineend/57)+1.55, false)
+                ctx.arc(220, 243, 170, (redline.angle / 57) + 1.55, (299 / 57) + 1.55, false)
                 ctx.stroke()
                 ctx.closePath()
-            }
+            }            
         }
 
         ////////// LFA BACKGROUND ////////////////////////////////////////////
         Image {
             id: lfa_ring
-            x: -15
+            x: -16
             y: 4
             z: -10
-            width: 472
-            height: 471
             source: "assets/lfa_ring.png"
             visible: showDashboard
+        }
+
+        Image {
+            id: white_indent
+            x: 13
+            y: 34
+            z: 4
+            smooth: false
+            source: "assets/white_indents_0_0.png"
+            visible: showDashboard            
+        }
+
+        Image {
+            id: bezel
+            x: 26
+            y: 48
+            z: -4
+            smooth: true
+            source: "assets/bezel_gray_0_0_.png"
+            visible: showDashboard            
+        }
+
+        Image {
+            id: blackcentre
+            x: 0
+            y: 0
+            z: 0
+            source: "assets/black_centre_0_0.png"
+            scale: 1.4
+            visible: showDashboard            
+
+            Timer{
+                interval: 50
+                repeat: true
+
+                running: if (parent.scale > 1 && root.rpm > 500) true;
+                    else if (parent.scale < 1.4 && root.rpm < 500) true;
+                    else false
+                
+                onTriggered: if (root.rpm > 500) parent.scale -= 0.04;
+                    else if(root.rpm < 500) parent.scale += 0.04
+            }
         }
 
         ////////// LEFT GAUGE SLIDER /////////////////////////////////////////
@@ -453,7 +505,7 @@ Item {
         ////////// RIGHT GAUGE SLIDER ////////////////////////////////////////
         Image {
             id: right_gauges
-            x: 312 + root.gaugeopen
+            x: 311 + root.gaugeopen
             y: 54
             z: -12
             width: 122
@@ -466,7 +518,7 @@ Item {
         Image {
             id: left_indicator
             x: -172
-            y: 35
+            y: 37
             z: 40
             width: 42
             height: 44
@@ -477,7 +529,7 @@ Item {
         Image {
             id: right_indicator
             x: 572
-            y: 35
+            y: 37
             z: 40
             width: 42
             height: 44
@@ -568,8 +620,8 @@ Item {
         ////////// INSIDE GAUGE INDICATORS /////////////////////////////
         Image {
             id: high_beam
-            x: 203
-            y: 103
+            x: 200
+            y: 102
             z: 3
             width: 39
             height: 28
@@ -581,8 +633,8 @@ Item {
 
         Image {
             id: mil_warning
-            x: 203
-            y: 345
+            x: 200
+            y: 349
             z: 3
             width: 40
             height: 30
@@ -592,12 +644,12 @@ Item {
             visible: showIcons && root.mil
         }
 
-        ////////// SPEED GAUGE ///////////////////////////////////////////////
+        ////////// SPEED & GEAR SELECTION GAUGES /////////////////////////////
         Text {
             id: speedmph
-            x: 148
-            y: 121
-            z: 50
+            x: 144
+            y: 120
+            z: 6
             width: 150
             height: 50 
             color: "#ffffff"
@@ -605,16 +657,16 @@ Item {
             style: Text.Outline
             horizontalAlignment: Text.AlignHCenter
             font.family: gauge_font.name
-            font.pixelSize: root.odopixelsize * 1.6
+            font.pixelSize: root.odopixelsize * 1.75
             font.bold: true
             visible: showDashboard
         }
 
         Text {
             id: mphlabel
-            x: 215
-            y: 185
-            z: 50
+            x: 211
+            y: 193
+            z: 6
             width: 15
             height: 33
             color: "#cfcfcf"
@@ -628,11 +680,11 @@ Item {
         }
 
         Rectangle {
-            x: 150
-            y: 211
-            z: 50
+            x: 144
+            y: 220
+            z: 6
             width: 150
-            height: 3
+            height: 2
             color: "#5f5f5f"
             radius: 0
             border.color: "#5f5f5f"
@@ -640,12 +692,11 @@ Item {
             visible: showDashboard
         }
 
-        ////////// GEAR SELECTION GAUGE //////////////////////////////////////
         Text {
             id: gearlabel
-            x: 215
-            y: 195
-            z: 50
+            x: 211
+            y: 209
+            z: 6
             width: 15
             height: 33
             color: "#ffffff"
@@ -653,17 +704,17 @@ Item {
             style: Text.Outline
             horizontalAlignment: Text.AlignHCenter
             font.family: gauge_font.name
-            font.pixelSize: root.odopixelsize * 2
+            font.pixelSize: root.odopixelsize * 1.5
             font.bold: true
             visible: showDashboard && (root.gearpos > 0)
         }
 
-        ////////// TRIP DISPLAY //////////////////////////////////////////////
+        ////////// TRIP & RANGE DISPLAYS /////////////////////////////////////
         Text {
             id: triplabel
-            x: (root.speedunits === 0) ? 195 : 184
-            y: 280
-            z: 63
+            x: (root.speedunits === 0) ? 192 : 181
+            y: 288
+            z: 6
             width: 15
             height: 33
             color: "#cfcfcf"
@@ -678,9 +729,9 @@ Item {
 
         Text {
             id: trip
-            x: (root.speedunits === 0) ? 286 : 293
-            y: 280
-            z: 63
+            x: (root.speedunits === 0) ? 283 : 290
+            y: 288
+            z: 6
             width: 15
             height: 33
             color: "#cfcfcf"
@@ -693,12 +744,11 @@ Item {
             visible: showDashboard
         }
 
-        ////////// RANGE DISPLAY /////////////////////////////////////////////
         Text {
             id: rangelabel
-            x: (root.speedunits === 0) ? 195 : 184
-            y: 302
-            z: 63
+            x: (root.speedunits === 0) ? 192 : 181
+            y: 310
+            z: 6
             width: 15
             height: 33
             color: "#cfcfcf"
@@ -713,12 +763,12 @@ Item {
 
         Text {
             id: range
-            x: (root.speedunits === 0) ? 286 : 293
-            y: 302
-            z: 63
+            x: (root.speedunits === 0) ? 283 : 290
+            y: 310
+            z: 6
             width: 15
             height: 33
-            color: (root.fuelwarning) ? ((root.rangecalc < 1) ? "#ff0000" : "#ffcf00") : "#cfcfcf"
+            color: (root.fuelwarning) ? ((root.rangecalc < 1) ? "red" : "#ffcf00") : "#cfcfcf"
             text: root.rangecalc.toFixed(1) + ((root.speedunits === 0) ? " km" : " miles")
             style: Text.Outline
             horizontalAlignment: Text.AlignRight
@@ -731,8 +781,8 @@ Item {
         ////////// RPM TEXT //////////////////////////////////////////////////
         Text {
             id: rpmlabel1
-            x: 268
-            y: 398
+            x: 259
+            y: 402
             z: 50
             width: 15
             height: 33
@@ -748,13 +798,13 @@ Item {
 
         Text {
             id: rpmlabel2
-            x: 268
-            y: 416
+            x: 257
+            y: 413
             z: 50
             width: 15
             height: 33
             color: "#cfcfcf"
-            text: "RPM"
+            text: "r/min"
             style: Text.Outline
             horizontalAlignment: Text.AlignRight
             font.family: gauge_font.name
@@ -777,6 +827,7 @@ Item {
         }
 
         Rectangle {
+            id: water_temp_rect
             x: (15 - root.gaugemax) + root.gaugeoffset
             y: if (root.waterunits !== 0) {
                     if (root.watertemp > 120)
@@ -797,26 +848,57 @@ Item {
             z: -50
             width: 86
             height: 205 - y
-            color: (root.waterwarning) ? "#ff0000" : ((root.watertempf < 180) ? "#00ffff" : "#e3eef6")
             radius: 0
             border.width: 0
             visible: root.gaugevisibility
             opacity: root.gaugeopacity
+
+            SequentialAnimation {
+                id: waterwarning_animation
+                loops: Animation.Infinite
+                running: false
+
+                PropertyAnimation {
+                    target: water_temp_rect
+                    property: "color"
+                    from: "red"
+                    to: "#3f0000"
+                    duration: 250
+                }
+
+                PropertyAnimation {
+                    target: water_temp_rect
+                    property: "color"
+                    from: "#3f0000"
+                    to: "red"
+                    duration: 125
+                }
+            }
+
+            property int waterTemp: (root.watertempf)
+            onWaterTempChanged: {
+                if (root.waterwarning) {
+                    waterwarning_animation.restart()
+                } else {
+                    waterwarning_animation.stop()
+                    color = ((root.watertempf < 180) ? "#00ffff" : "#e3eef6")
+                }
+            }
         }
 
         Text {
             id: coolant_temp
-            x: (105 - root.gaugemax) + root.gaugeoffset
-            y: 172
+            x: (104 - root.gaugemax) + root.gaugeoffset
+            y: 171
             z: -11
             width: 15
             height: 33
-            color: (root.waterwarning) ? "#ff0000" : "#e3eef6"
+            color: (root.waterwarning) ? "red" : "#e3eef6"
             text: (root.waterunits !== 0) ? root.watertemp.toFixed(0) + " °C" : root.watertempf + " °F" 
             style: Text.Outline
             horizontalAlignment: Text.AlignHCenter
             font.family: gauge_font.name
-            font.pixelSize: root.odopixelsize / 3
+            font.pixelSize: root.odopixelsize / 2.5
             font.bold: false
             visible: root.gaugevisibility
             opacity: root.gaugeopacity
@@ -824,7 +906,7 @@ Item {
 
         Text {
             id: coolant_temp_upper_label
-            x: (120 - root.gaugemax) + root.gaugeoffset
+            x: (121 - root.gaugemax) + root.gaugeoffset
             y: 49
             z: 60
             width: 15
@@ -860,8 +942,8 @@ Item {
 
         Text {
             id: coolant_temp_lower_label
-            x: (43 - root.gaugemax) + root.gaugeoffset
-            y: 196
+            x: (44 - root.gaugemax) + root.gaugeoffset
+            y: 195
             z: 60
             width: 15
             height: 33
@@ -914,7 +996,7 @@ Item {
             z: -50
             width: 86
             height: 429 - y
-            color: (root.fuelwarning) ? "#ff0000" : "#e3eef6"
+            color: (root.fuelwarning) ? "red" : "#e3eef6"
             radius: 0
             border.width: 0
             visible: root.gaugevisibility
@@ -923,17 +1005,17 @@ Item {
 
         Text {
             id: fuel_level
-            x: (104 - root.gaugemax) + root.gaugeoffset
-            y: 332
+            x: (102 - root.gaugemax) + root.gaugeoffset
+            y: 331
             z: -11
             width: 15
             height: 33
-            color: (root.fuelwarning) ? "#ff0000" : "#dfdfdf"
+            color: (root.fuelwarning) ? "red" : "#dfdfdf"
             text: root.fuellevel.toFixed(0) + "%"
             style: Text.Outline
             horizontalAlignment: Text.AlignHCenter
             font.family: gauge_font.name
-            font.pixelSize: root.odopixelsize / 3
+            font.pixelSize: root.odopixelsize / 2.5
             font.bold: false
             visible: root.gaugevisibility
             opacity: root.gaugeopacity
@@ -978,7 +1060,7 @@ Item {
         ////////// OIL TEMPERATURE INDICATOR /////////////////////////////////
         Image {
             id: oil_temperature_warning
-            x: (312 + root.gaugemax) - root.gaugeoffset
+            x: (311 + root.gaugemax) - root.gaugeoffset
             y: 147
             z: -11
             width: 40
@@ -989,7 +1071,8 @@ Item {
         }
 
         Rectangle {
-            x: (341 + root.gaugemax) - root.gaugeoffset
+            id: oil_temp_rect
+            x: (340 + root.gaugemax) - root.gaugeoffset
             y: if (root.oiltempunits !== 0) {
                     if (root.oiltemp > 130)
                         59
@@ -1009,26 +1092,57 @@ Item {
             z: -50
             width: 86
             height: 205 - y
-            color: (root.oiltempwarning) ? "#ff0000" : ((root.oiltempf < 180) ? "#00ffff" : "#e3eef6")
             radius: 0
             border.width: 0
             visible: root.gaugevisibility
             opacity: root.gaugeopacity
+
+            SequentialAnimation {
+                id: oilwarning_animation
+                loops: Animation.Infinite
+                running: false
+
+                PropertyAnimation {
+                    target: oil_temp_rect
+                    property: "color"
+                    from: "red"
+                    to: "#3f0000"
+                    duration: 250
+                }
+
+                PropertyAnimation {
+                    target: oil_temp_rect
+                    property: "color"
+                    from: "#3f0000"
+                    to: "red"
+                    duration: 125
+                }
+            }
+
+            property int oilTemp: (root.oiltempf)
+            onOilTempChanged: {
+                if (root.oiltempwarning) {
+                    oilwarning_animation.restart()
+                } else {
+                    oilwarning_animation.stop()
+                    color = ((root.oiltempf < 180) ? "#00ffff" : "#e3eef6")
+                }
+            }
         }
 
         Text {
             id: oil_temperature
-            x: (324 + root.gaugemax) - root.gaugeoffset
-            y: 172
+            x: (322 + root.gaugemax) - root.gaugeoffset
+            y: 171
             z: -11
             width: 15
             height: 33
-            color: (root.oiltempwarning) ? "#ff0000" : "#e3eef6"
+            color: (root.oiltempwarning) ? "red" : "#e3eef6"
             text: (root.oiltempunits !== 0) ? root.oiltemp.toFixed(0) + " °C" : root.oiltempf + " °F"
             style: Text.Outline
             horizontalAlignment: Text.AlignHCenter
             font.family: gauge_font.name
-            font.pixelSize: root.odopixelsize / 3
+            font.pixelSize: root.odopixelsize / 2.5
             font.bold: false
             visible: root.gaugevisibility
             opacity: root.gaugeopacity
@@ -1036,7 +1150,7 @@ Item {
 
         Text {
             id: oil_temperature_upper_label
-            x: (312 + root.gaugemax) - root.gaugeoffset
+            x: (315 + root.gaugemax) - root.gaugeoffset
             y: 49
             z: 60
             width: 15
@@ -1054,7 +1168,7 @@ Item {
 
         Text {
             id: oil_temperature_middle_label
-            x: (362 + root.gaugemax) - root.gaugeoffset
+            x: (365 + root.gaugemax) - root.gaugeoffset
             y: 121
             z: 60
             width: 15
@@ -1072,8 +1186,8 @@ Item {
 
         Text {
             id: oil_temperature_lower_level
-            x: (387 + root.gaugemax) - root.gaugeoffset
-            y: 196
+            x: (392 + root.gaugemax) - root.gaugeoffset
+            y: 195
             z: 60
             width: 15
             height: 33
@@ -1091,7 +1205,7 @@ Item {
         ////////// RPM INDICATOR /////////////////////////////////////////////
         Text {
             id: rpm_display
-            x: (419 + root.gaugemax) - gaugeoffset
+            x: (418 + root.gaugemax) - gaugeoffset
             y: 229
             z: 60
             width: 15
@@ -1110,7 +1224,7 @@ Item {
         ////////// OIL PRESSURE INDICATOR ////////////////////////////////////
         Image {
             id: oil_pressure_warning
-            x: (312 + root.gaugemax) - root.gaugeoffset
+            x: (311 + root.gaugemax) - root.gaugeoffset
             y: 314
             z: -11
             width: 41
@@ -1121,7 +1235,7 @@ Item {
         }
 
         Rectangle {
-            x: (341 + root.gaugemax) - root.gaugeoffset
+            x: (340 + root.gaugemax) - root.gaugeoffset
             y: if (root.oilpressureunits !== 0) {
                     if (root.oilpresskpa > 800)
                         283
@@ -1141,7 +1255,7 @@ Item {
             z: -50
             width: 86
             height: 429 - y
-            color: (root.oilpresswarning) ? "#ff0000" : "#e3eef6"
+            color: (root.oilpresswarning) ? "red" : "#e3eef6"
             radius: 0
             border.width: 0
             visible: root.gaugevisibility
@@ -1150,17 +1264,17 @@ Item {
 
         Text {
             id: oil_pressure
-            x: (325 + root.gaugemax) - root.gaugeoffset
-            y: 332
+            x: (324 + root.gaugemax) - root.gaugeoffset
+            y: 331
             z: -11
             width: 15
             height: 33
-            color: (root.gaugeopen >= root.gaugemax && root.oilpresswarning) ? "#ff0000" : "#dfdfdf"
+            color: (root.gaugeopen >= root.gaugemax && root.oilpresswarning) ? "red" : "#dfdfdf"
             text: (root.oilpressureunits !== 0) ? root.oilpresskpa.toFixed(0) + " kPa" : root.oilpresspsi.toFixed(0) + " psi"
             style: Text.Outline
             horizontalAlignment: Text.AlignHCenter
             font.family: gauge_font.name
-            font.pixelSize: root.odopixelsize / 3
+            font.pixelSize: root.odopixelsize / 2.5
             font.bold: false
             visible: root.gaugevisibility
             opacity: root.gaugeopacity
@@ -1168,7 +1282,7 @@ Item {
 
         Text {
             id: oil_pressure_upper_label
-            x: (387 + root.gaugemax) - root.gaugeoffset
+            x: (396 + root.gaugemax) - root.gaugeoffset
             y: 272
             z: 60
             width: 15
@@ -1186,7 +1300,7 @@ Item {
 
         Text {
             id: oil_pressure_middle_label
-            x: (362 + root.gaugemax) - root.gaugeoffset
+            x: (371 + root.gaugemax) - root.gaugeoffset
             y: 346
             z: 60
             width: 15
@@ -1204,7 +1318,7 @@ Item {
 
         Text {
             id: oil_pressure_lower_label
-            x: (312 + root.gaugemax) - root.gaugeoffset
+            x: (321 + root.gaugemax) - root.gaugeoffset
             y: 420
             z: 60
             width: 15
@@ -1218,49 +1332,6 @@ Item {
             font.pixelSize: root.odopixelsize / 2.75
             visible: root.gaugevisibility
             opacity: root.gaugeopacity
-        }
-
-        ////////// LFA BACKGROUND ////////////////////////////////////////////
-        Image {
-            id: bezel
-            x: 0
-            y: 0
-            z: -4
-            smooth: true
-            source: "assets/bezel_gray_0_0_.png"
-            visible: showDashboard            
-        }
-
-        Image {
-            id: white_indent
-            x: 0
-            y: 0
-            z: 4
-            smooth: false
-            source: "assets/white_indents_0_0.png"
-            visible: showDashboard            
-        }
-
-        Image {
-            id: blackcentre
-            x: 0
-            y: 0
-            z: 0
-            source: "assets/black_centre_0_0.png"
-            scale: 1.4
-            visible: showDashboard            
-
-            Timer{
-                interval: 50
-                repeat: true
-
-                running: if (parent.scale > 1 && root.rpm > 500) true;
-                    else if (parent.scale < 1.4 && root.rpm < 500) true;
-                    else false
-                
-                onTriggered: if (root.rpm > 500) parent.scale -= 0.04;
-                    else if(root.rpm < 500) parent.scale += 0.04
-            }
         }
 
         ////////// 0-10 GAUGE NUMBERS ////////////////////////////////////////
@@ -1277,24 +1348,10 @@ Item {
                 style: Text.Outline
                 horizontalAlignment: Text.AlignRight
                 font.family: gauge_font.name
-                font.pixelSize: root.odopixelsize
+                font.pixelSize: root.odopixelsize / 1.15
                 font.bold: true
                 visible: showDashboard            
             }
-        }
-
-        ////////// GAUGE DIAL INDENTS ////////////////////////////////////////
-        Image {
-            id: white_indent1
-            x: 122
-            y: 0
-            z: 3
-            width: 200
-            height: 480
-            fillMode: Image.PreserveAspectCrop
-            rotation: 60
-            source: "assets/white_indents_0_0.png"
-            visible: showDashboard            
         }
     }
 }
