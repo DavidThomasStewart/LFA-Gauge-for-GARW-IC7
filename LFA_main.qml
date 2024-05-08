@@ -116,7 +116,7 @@ Item{
 
 width:800
 height:480
-FontLoader{id:basicfont; source: "basic.ttf"}
+FontLoader{id:basicfont; source: "saira.medium.ttf"}
 Item{
     x: 800
     y: 50
