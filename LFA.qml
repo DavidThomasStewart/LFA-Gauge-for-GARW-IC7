@@ -61,7 +61,7 @@ Item {
 
     ////////// ODOMETER VARIABLES (NON-VOLATILE STORAGE) /////////////////////
     property int odometer: rpmtest.odometer0data
-    property int tripmeter: rpmtest.tripmileage0data
+    property int tripmeter: (rpmtest.tripmileage0data / 10)
     property real odopixelsize: 36
 
     ////////// RPM VARIABLES /////////////////////////////////////////////////
@@ -114,12 +114,12 @@ Item {
     property bool   waterwarning : (waterhigh === 0 && watertempf > 212) || (waterhigh > 0 && watertempf >= waterhigh)
 
     ////////// FUEL VARIABLES ////////////////////////////////////////////////
-    property real   fuel: rpmtest.fueldata;
+    property real   fuel: rpmtest.fueldata
     property real   fuelhigh: 0 // if fuelhigh = 0 then icons will be displayed
     property real   fuellow: 0
     property real   fuelunits
     property real   fueldamping: 5
-    property real   fuellevel : (fuel * gaugeopacity)
+    property real   fuellevel : (fuel * gaugeopacity > 100) ? 100 : (fuel * gaugeopacity)
     property bool   fuelwarning : (fuellow === 0 && fuellevel < 20) || (fuellevel <= fuellow)
 
                     // car stalls out at 7% fuel which is 0 range
@@ -127,6 +127,7 @@ Item {
 
                     // range calculation assumes (240 miles) with FULL tank and (165 miles) remaining when fuel drops below 100% fuel indicated
     property real   rangecalc : (fuellevel >= 100) ? (240 - tripmeter) : (rangefuel * 165)
+    property real   rangecalcText : (rangecalc < 0) ? 0 : rangecalc
 
     ////////// OIL VARIABLES /////////////////////////////////////////////////
     property real   oiltemp: rpmtest.oiltempdata
@@ -134,7 +135,7 @@ Item {
     property real   oiltemplow: 0
     property real   oiltempunits: 0
     property int    oiltempf: ((oiltemp * 9 / 5) + 32) * gaugeopacity
-    property bool   oiltempwarning : (oiltemphigh === 0 && oiltempf > 225) || (oiltemphigh > 0 && oiltempf >= oiltemphigh)
+    property bool   oiltempwarning : (oiltemphigh === 0 && oiltempf > 240) || (oiltemphigh > 0 && oiltempf >= oiltemphigh)
 
     property real   oilpressure: rpmtest.oilpressuredata
     property real   oilpressurehigh: root.oilpressurehigh
@@ -769,7 +770,7 @@ Item {
             width: 15
             height: 33
             color: (root.fuelwarning) ? ((root.rangecalc < 1) ? "red" : "#ffcf00") : "#cfcfcf"
-            text: root.rangecalc.toFixed(1) + ((root.speedunits === 0) ? " km" : " miles")
+            text: root.rangecalcText.toFixed(1) + ((root.speedunits === 0) ? " km" : " miles")
             style: Text.Outline
             horizontalAlignment: Text.AlignRight
             font.family: gauge_font.name
