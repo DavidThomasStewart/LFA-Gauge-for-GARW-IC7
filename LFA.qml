@@ -736,7 +736,7 @@ Item {
             width: 15
             height: 33
             color: "#cfcfcf"
-            text: root.tripmeter.toFixed(1) + ((root.speedunits === 0) ? " km" : " miles")
+            text: (root.tripmeter/10).toFixed(1) + ((root.speedunits === 0) ? " km" : " miles")
             style: Text.Outline
             horizontalAlignment: Text.AlignRight
             font.family: gauge_font.name
