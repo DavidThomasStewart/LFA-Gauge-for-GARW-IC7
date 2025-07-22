@@ -126,7 +126,7 @@ Item {
     property real   rangefuel : (fuellevel > 6) ? ((fuellevel - 6) / 100) : 0 
 
                     // range calculation assumes (240 miles) with FULL tank and (165 miles) remaining when fuel drops below 100% fuel indicated
-    property real   rangecalc : (fuellevel >= 100) ? (240 - tripmeter) : (rangefuel * 165)
+    property real   rangecalc : (fuellevel >= 100) ? (240 - tripmeter/10) : (rangefuel * 165)
     property real   rangecalcText : (rangecalc < 0) ? 0 : rangecalc
 
     ////////// OIL VARIABLES /////////////////////////////////////////////////
