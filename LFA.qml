@@ -287,6 +287,8 @@ Item {
     ]
 
     ////////// LOTUS LOGO ////////////////////////////////////////////////////
+    Item { id: dashView          // live-preview source: wraps the logo + dial
+        anchors.fill: parent
     Image {
         id: lotus_logo
         x: 0
@@ -1490,6 +1492,15 @@ Item {
             }
         }
     }
+        // ---- NIGHTLIGHT dimmer: inside dashView so it dims the dash AND shows
+        //      in the live preview; driven by the NIGHTLIGHT menu row
+        Rectangle {
+            anchors.fill: parent
+            color: "#000000"
+            opacity: root.night_time_hue * 0.7
+            visible: root.night_time_hue > 0
+        }
+    }   // ---- end dashView (live-preview source) --------------------------
 
     ////////// CONFIG FILE I/O (GTDash-style: resolve between the two IC7 paths) //
     // Some IC7 builds use /opt/Garw_IC7/..., others /opt/IC7/.... cfgPath holds
@@ -1533,15 +1544,51 @@ Item {
         }
         root.cfgPath = root.cfgCandidates[root.cfgCandidates.length - 1];   // fallback
     }
-    // LFA config line order (unchanged from the original LFA_config.txt schema).
-    // Returns true if a usable config was read, false if missing/empty.
+    // Config is stored as key=value lines (hand-editable, order-independent). An
+    // older positional file is detected (no "=") and read once, then rewritten in
+    // the new format on the next save, so existing LFA_config.txt files migrate.
     function loadConfig() {
         function pI(s, def) { return (s !== "" && s !== undefined && s !== null) ? parseInt(s)   : def; }
         function pF(s, def) { return (s !== "" && s !== undefined && s !== null) ? parseFloat(s) : def; }
-        var s0 = rline(0);
-        var found = (s0 !== "" && s0 !== undefined && s0 !== null);
-        if (!found) return false;
-        root.colorscheme       = s0;                              // line 0 (string)
+        var map = {}, any = false, sawEq = false, i, s, eq;
+        for (i = 0; i < 40; i++) {
+            s = rline(i);
+            if (s === "" || s === undefined || s === null) break;   // contiguous file; stop at end
+            any = true;
+            eq = String(s).indexOf("=");
+            if (eq > 0) { sawEq = true; map[String(s).slice(0, eq).trim()] = String(s).slice(eq + 1).trim(); }
+        }
+        if (!any) return false;
+        if (sawEq) {
+            function gI(k, def) { return (k in map) ? pI(map[k], def) : def; }
+            function gF(k, def) { return (k in map) ? pF(map[k], def) : def; }
+            if ("colorscheme" in map) root.colorscheme = map["colorscheme"];
+            root.red               = gI("red",               root.red);
+            root.green             = gI("green",             root.green);
+            root.blue              = gI("blue",              root.blue);
+            root.waterlow          = gI("waterlow",          root.waterlow);
+            root.waterhigh         = gI("waterhigh",         root.waterhigh);
+            root.waterunits        = gI("waterunits",        root.waterunits);
+            root.fuellow           = gI("fuellow",           root.fuellow);
+            root.fuelhigh          = gI("fuelhigh",          root.fuelhigh);
+            root.fuelunits         = gI("fuelunits",         root.fuelunits);
+            root.oiltemplow        = gI("oiltemplow",        root.oiltemplow);
+            root.oiltemphigh       = gI("oiltemphigh",       root.oiltemphigh);
+            root.oiltempunits      = gI("oiltempunits",      root.oiltempunits);
+            root.oilpressurelow    = gI("oilpressurelow",    root.oilpressurelow);
+            root.oilpressurehigh   = gI("oilpressurehigh",   root.oilpressurehigh);
+            root.oilpressureunits  = gI("oilpressureunits",  root.oilpressureunits);
+            root.speedunits        = gI("speedunits",        root.speedunits);
+            root.rpmlimit          = gI("rpmlimit",          root.rpmlimit);
+            root.shiftvalue        = gI("shiftvalue",        root.shiftvalue);
+            root.night_time_hue    = gF("night_time_hue",    root.night_time_hue);
+            root.rpmdamping        = gI("rpmdamping",        root.rpmdamping);
+            root.fueldamping       = gI("fueldamping",       root.fueldamping);
+            if ("showLogoOnStart" in map) root.showLogoOnStart = (pI(map["showLogoOnStart"], 1) !== 0);
+            return true;
+        }
+        // ---- migration: no "=" seen -> read the old positional schema once ----
+        root.colorscheme       = rline(0);
         root.red               = pI(rline(1),  root.red);
         root.green             = pI(rline(2),  root.green);
         root.blue              = pI(rline(3),  root.blue);
@@ -1561,32 +1608,44 @@ Item {
         root.rpmlimit          = pI(rline(17), root.rpmlimit);
         root.shiftvalue        = pI(rline(18), root.shiftvalue);
         root.night_time_hue    = pF(rline(19), root.night_time_hue);
-        // lines 20,21 reserved (were batterylow/batteryhigh - removed, unused)
         root.rpmdamping        = pI(rline(22), root.rpmdamping);
         root.fueldamping       = pI(rline(23), root.fueldamping);
         root.showLogoOnStart   = (pI(rline(24), 1) !== 0);
-        return found;
+        return true;
     }
-    // Write the whole file in a SINGLE writetoopenfile() call (round-trips with
-    // the per-line reader above). Same 25-line order as loadConfig.
+    // Write the whole file in a SINGLE writetoopenfile() call as key=value lines.
     function saveConfig() {
         try {
-            var vals = [root.colorscheme, root.red, root.green, root.blue,
-                        root.waterlow, root.waterhigh, root.waterunits,
-                        root.fuellow, root.fuelhigh, root.fuelunits,
-                        root.oiltemplow, root.oiltemphigh, root.oiltempunits,
-                        root.oilpressurelow, root.oilpressurehigh, root.oilpressureunits,
-                        root.speedunits, root.rpmlimit, root.shiftvalue, root.night_time_hue.toFixed(2),
-                        "0", "0",                                 // 20,21 reserved (were battery low/high)
-                        root.rpmdamping, root.fueldamping,
-                        (root.showLogoOnStart ? 1 : 0)];
-            var out = "";
-            for (var i = 0; i < vals.length; i++) out += String(vals[i]) + "\n";
+            var out =
+                "colorscheme="      + root.colorscheme                  + "\n" +
+                "red="              + root.red                          + "\n" +
+                "green="            + root.green                        + "\n" +
+                "blue="             + root.blue                         + "\n" +
+                "waterlow="         + root.waterlow                     + "\n" +
+                "waterhigh="        + root.waterhigh                    + "\n" +
+                "waterunits="       + root.waterunits                   + "\n" +
+                "fuellow="          + root.fuellow                      + "\n" +
+                "fuelhigh="         + root.fuelhigh                     + "\n" +
+                "fuelunits="        + root.fuelunits                    + "\n" +
+                "oiltemplow="       + root.oiltemplow                   + "\n" +
+                "oiltemphigh="      + root.oiltemphigh                  + "\n" +
+                "oiltempunits="     + root.oiltempunits                 + "\n" +
+                "oilpressurelow="   + root.oilpressurelow               + "\n" +
+                "oilpressurehigh="  + root.oilpressurehigh              + "\n" +
+                "oilpressureunits=" + root.oilpressureunits             + "\n" +
+                "speedunits="       + root.speedunits                   + "\n" +
+                "rpmlimit="         + root.rpmlimit                     + "\n" +
+                "shiftvalue="       + root.shiftvalue                   + "\n" +
+                "night_time_hue="   + root.night_time_hue.toFixed(2)    + "\n" +
+                "rpmdamping="       + root.rpmdamping                   + "\n" +
+                "fueldamping="      + root.fueldamping                  + "\n" +
+                "showLogoOnStart="  + (root.showLogoOnStart ? 1 : 0)    + "\n";
             config_file.open();
             config_file.writetoopenfile(out);
             config_file.close();
         } catch (e) { console.log("LFA: could not write config (" + e + ")"); }
     }
+
     Component.onCompleted: {
         // Tell the host firmware that warnings are handled locally so it does NOT draw its own
         // warning-light overlay over the dash (matching GTDash). The property is absent on older
@@ -1604,9 +1663,6 @@ Item {
     FontLoader { id: basicfont; source: "basic.ttf" }
 
     readonly property var items: [
-        { k: "red",   label: "RED" },
-        { k: "green", label: "GREEN" },
-        { k: "blue",  label: "BLUE" },
         { k: "whi",   label: "WATER HIGH" },
         { k: "wlo",   label: "WATER LOW" },
         { k: "wun",   label: "WATER UNIT" },
@@ -1629,6 +1685,30 @@ Item {
     ]
     readonly property var noRamp: ["wun","otun","opun","speed","rdamp","fdmp","night","wicon","logo","exit"]
     function isRampable(k) { return noRamp.indexOf(k) === -1; }
+    function helpText(k) {
+        switch (k) {
+        case "whi":   return "Coolant warns above this temperature.";
+        case "wlo":   return "Coolant shown cold below this temperature.";
+        case "wun":   return "Coolant temperature unit (\u00B0C / \u00B0F).";
+        case "flo":   return "Low-fuel warning below this level.";
+        case "othi":  return "Oil-temperature warning above this.";
+        case "otlo":  return "Oil shown cold below this temperature.";
+        case "otun":  return "Oil-temperature unit (\u00B0C / \u00B0F).";
+        case "ophi":  return "Oil-pressure warning above this.";
+        case "oplo":  return "Low oil-pressure warning below this.";
+        case "opun":  return "Oil-pressure unit (PSI / BAR / kPa).";
+        case "speed": return "Speed unit for the readout (KM/H or MPH).";
+        case "limit": return "Full-scale RPM at the top of the tach sweep.";
+        case "shift": return "RPM where the shift light triggers (0 = auto).";
+        case "rdamp": return "Needle smoothing (0 = sharp \u2192 10 = smooth).";
+        case "fdmp":  return "Fuel-gauge smoothing (0 = raw \u2192 9 = smooth).";
+        case "night": return "Night-time dimming level (OFF = full bright).";
+        case "wicon": return "Show the warning-icon telltales.";
+        case "logo":  return "Play the Lotus logo animation at power-up.";
+        case "exit":  return "Save all settings and close the menu.";
+        }
+        return "";
+    }
     function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
     // --- temperature unit helpers -------------------------------------------
     // Coolant / oil-temp thresholds are stored internally in °F (warnings compare in
@@ -1668,9 +1748,6 @@ Item {
     function applyValue(dir) {
         var k = items[sel].k;
         switch (k) {
-        case "red":   root.red   = ((root.red   + dir) % 256 + 256) % 256; break;
-        case "green": root.green = ((root.green + dir) % 256 + 256) % 256; break;
-        case "blue":  root.blue  = ((root.blue  + dir) % 256 + 256) % 256; break;
         case "whi":   root.waterhigh = root.tempStep(root.waterhigh, dir, root.waterunits === 1); break;
         case "wlo":   root.waterlow  = root.tempStep(root.waterlow,  dir, root.waterunits === 1); break;
         case "wun":   root.waterunits = (root.waterunits === 0) ? 1 : 0; break;
@@ -1696,9 +1773,6 @@ Item {
 
     function valueText(k) {
         switch (k) {
-        case "red":   return String(root.red);
-        case "green": return String(root.green);
-        case "blue":  return String(root.blue);
         case "whi":   return root.tempDisp(root.waterhigh, root.waterunits === 1);
         case "wlo":   return root.tempDisp(root.waterlow,  root.waterunits === 1);
         case "wun":   return root.waterunits === 1 ? "\u00B0C" : "\u00B0F";
@@ -1741,10 +1815,10 @@ Item {
     Connections {
         target: rpmtest
         ignoreUnknownSignals: true
-        function onInputsdataChanged()     { root.evalEdges(); }
-        function onUdp_packetdataChanged() { root.evalEdges(); }
+        onInputsdataChanged:     root.evalEdges()   // old-style: fires reliably on the IC7's Qt 5.12
+        onUdp_packetdataChanged: root.evalEdges()
     }
-    Timer { interval: 50; running: true; repeat: true; onTriggered: root.evalEdges() }
+    Timer { interval: 30; running: true; repeat: true; onTriggered: root.evalEdges() }
     Timer {   // hold-to-ramp for numeric rows (only while the menu is open)
         interval: 90; running: root.settings_on_off; repeat: true
         onTriggered: {
@@ -1774,24 +1848,25 @@ Item {
         readonly property int visibleRows: 11
         readonly property int rowH: 30
 
-        Rectangle { anchors.fill: parent; color: "#03050c"; opacity: 0.82 }
+        Rectangle { anchors.fill: parent; color: "#03050c"; opacity: 0.82 }   // dim the full-size dash behind
 
         Rectangle {
             id: panel
-            width: 540; height: 444; anchors.centerIn: parent
+            width: 772; height: 452; anchors.centerIn: parent
             radius: 16; color: "#0a0f1a"; border.color: "#1e2a44"; border.width: 2
 
             Text {
                 text: "LFA SETTINGS"; color: "#ffffff"
                 font.pixelSize: 24; font.bold: true; font.family: basicfont.name
-                anchors.horizontalCenter: parent.horizontalCenter; y: 14
+                anchors.horizontalCenter: parent.horizontalCenter; y: 12
             }
-            Rectangle { x: 40; y: 50; width: parent.width - 80; height: 3; color: root.accent }
+            Rectangle { x: 24; y: 46; width: parent.width - 48; height: 3; color: root.accent }
 
+            // ----- LEFT: settings list -----
             ListView {
                 id: menuList
-                x: 22; y: 64
-                width: parent.width - 44; height: menu.visibleRows * menu.rowH
+                x: 22; y: 60
+                width: 356; height: menu.visibleRows * menu.rowH
                 clip: true
                 interactive: false
                 model: root.items
@@ -1804,48 +1879,56 @@ Item {
                     id: row
                     width: ListView.view.width; height: menu.rowH
                     property bool current: ListView.isCurrentItem
-                    Rectangle {
-                        visible: row.current
-                        x: 0; y: 3; width: parent.width - 30; height: menu.rowH - 6
-                        radius: 7; color: root.accent; opacity: 0.26
-                    }
-                    Rectangle {
-                        visible: row.current
-                        x: 0; y: 3; width: 4; height: menu.rowH - 6; color: root.accent
-                    }
+                    Rectangle { visible: row.current; x: 0; y: 3; width: parent.width - 30; height: menu.rowH - 6; radius: 7; color: root.accent; opacity: 0.26 }
+                    Rectangle { visible: row.current; x: 0; y: 3; width: 4; height: menu.rowH - 6; color: root.accent }
                     Text {
                         text: modelData.label
-                        x: 22; anchors.verticalCenter: parent.verticalCenter
+                        x: 20; anchors.verticalCenter: parent.verticalCenter
                         color: row.current ? "#ffffff" : "#9fb2d0"
-                        font.pixelSize: 18; font.bold: true; font.family: basicfont.name
+                        font.pixelSize: 17; font.bold: true; font.family: basicfont.name
                     }
                     Text {
-                        anchors.right: parent.right; anchors.rightMargin: 34
+                        anchors.right: parent.right; anchors.rightMargin: 30
                         anchors.verticalCenter: parent.verticalCenter
                         text: { var r = root.settingsRev; return root.valueText(modelData.k); }
                         color: row.current ? "#ffffff" : root.accent
-                        font.pixelSize: 18; font.bold: true; font.family: basicfont.name
+                        font.pixelSize: 17; font.bold: true; font.family: basicfont.name
                     }
                 }
             }
-
-            Rectangle {
+            Rectangle {   // scrollbar
                 visible: menuList.contentHeight > menuList.height
-                x: parent.width - 26; y: 64; width: 5
-                height: menu.visibleRows * menu.rowH
+                x: 384; y: 60; width: 4; height: menu.visibleRows * menu.rowH
                 radius: 2; color: "#1c2740"
-                Rectangle {
-                    x: 0; width: 5; radius: 2; color: root.accent
+                Rectangle { x: 0; width: 4; radius: 2; color: root.accent
                     y: parent.height * menuList.visibleArea.yPosition
-                    height: Math.max(24, parent.height * menuList.visibleArea.heightRatio)
+                    height: Math.max(24, parent.height * menuList.visibleArea.heightRatio) }
+            }
+
+            // ----- RIGHT: live preview of the running dash + per-row help -----
+            Text { x: 404; y: 44; text: "LIVE PREVIEW"; color: "#7f93b6"
+                   font.pixelSize: 13; font.bold: true; font.family: basicfont.name }
+            Rectangle {
+                x: 404; y: 62; width: 344; height: 206
+                color: "#05080f"; border.color: "#1e2a44"; border.width: 1; radius: 6; clip: true
+                ShaderEffectSource {
+                    anchors.fill: parent; anchors.margins: 1
+                    sourceItem: dashView
+                    live: root.settings_on_off
+                    hideSource: false
                 }
+            }
+            Text {   // per-row help
+                x: 404; y: 282; width: 344; wrapMode: Text.WordWrap
+                text: root.helpText(root.items[root.sel].k)
+                color: "#cfe0f5"; font.pixelSize: 15; font.family: basicfont.name
             }
 
             Text {
-                text: "L / R  SELECT       U / D  CHANGE"
+                text: "L / R  SELECT      U / D  CHANGE      EXIT + U  SAVE"
                 color: "#5f6f8a"; font.pixelSize: 13; font.family: basicfont.name
                 anchors.horizontalCenter: parent.horizontalCenter
-                y: parent.height - 28
+                y: parent.height - 26
             }
         }
     }
